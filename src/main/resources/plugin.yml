@@ -1,0 +1,80 @@
+name: WooEco
+version: ${project.version}
+main: com.oolonghoo.wooeco.WooEco
+api-version: '1.21'
+author: oolongho
+description: A simple economy plugin
+
+softdepend:
+  - Vault
+  - PlaceholderAPI
+
+libraries:
+  - com.zaxxer:HikariCP:5.1.0
+  - redis.clients:jedis:5.1.0
+  - com.mysql:mysql-connector-j:8.3.0
+
+commands:
+  wooeco:
+    description: Main economy command
+    usage: /wooeco [args]
+    permission: wooeco.use
+    aliases: [weco]
+  pay:
+    description: Pay another player
+    usage: /pay <player> <amount>
+    permission: wooeco.pay
+  income:
+    description: Check your daily income
+    usage: /income
+    permission: wooeco.income
+
+permissions:
+  wooeco.use:
+    description: Basic usage permission
+    default: true
+  wooeco.balance:
+    description: View own balance
+    default: true
+  wooeco.balance.other:
+    description: View other players' balance
+    default: op
+  wooeco.pay:
+    description: Permission to pay others
+    default: true
+  wooeco.income:
+    description: View own daily income
+    default: true
+  wooeco.income.other:
+    description: View other players' daily income
+    default: op
+  wooeco.history:
+    description: View own transaction history
+    default: true
+  wooeco.history.other:
+    description: View other players' transaction history
+    default: op
+  wooeco.top:
+    description: View leaderboard
+    default: true
+  wooeco.admin:
+    description: Admin permission
+    default: op
+  wooeco.admin.give:
+    description: Give money to players
+    default: op
+  wooeco.admin.take:
+    description: Take money from players
+    default: op
+  wooeco.admin.set:
+    description: Set players' balance
+    default: op
+  wooeco.admin.reload:
+    description: Reload configuration
+    default: op
+  wooeco.admin.debug:
+    description: Debug permission
+    default: op
+  wooeco.bypass.tax:
+    description: Bypass transaction tax
+    default: op

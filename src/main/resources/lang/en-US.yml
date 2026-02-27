@@ -1,0 +1,104 @@
+prefix: "&a[WooEco] &r"
+
+# General messages
+no-permission: "&cYou don't have permission to do this!"
+player-only: "&cThis command can only be executed by a player!"
+player-not-found: "&cPlayer {player} not found or has never joined the server!"
+invalid-amount: "&cInvalid amount!"
+invalid-number: "&cPlease enter a valid number!"
+reload-success: "&aConfiguration reloaded successfully!"
+unknown-command: "&cUnknown command! Use /{command} help for help"
+
+# Currency related
+currency:
+  balance: "&aYour balance: {symbol}{balance}"
+  balance-other: "&aPlayer {player}'s balance: {symbol}{balance}"
+  balance-top: "&e========== &6Balance Top &e=========="
+  income-top: "&e========== &6Daily Income Top &e=========="
+
+# Transaction related
+transaction:
+  pay-usage: "&cUsage: /{command} pay <player> <amount>"
+  pay-self: "&cYou cannot pay yourself!"
+  pay-insufficient: "&cInsufficient balance! Required: {symbol}{amount}"
+  pay-min: "&cMinimum transfer amount is {symbol}{min}"
+  pay-max: "&cMaximum transfer amount is {symbol}{max}"
+  pay-success: "&aSuccessfully transferred {symbol}{amount} to {player}!"
+  pay-received: "&aYou received {symbol}{amount} from {player}"
+  tax-deducted: "&7(Tax deducted: {symbol}{tax})"
+  error: "&cTransaction failed: {error}"
+
+# Income related
+income:
+  today: "&aYour today's income: {symbol}{income}"
+  today-other: "&aPlayer {player}'s today's income: {symbol}{income}"
+
+# Admin commands
+admin:
+  give-success: "&aSuccessfully gave {symbol}{amount} to {player}!"
+  take-success: "&aSuccessfully took {symbol}{amount} from {player}!"
+  take-insufficient: "&cPlayer {player} has insufficient balance! Current: {symbol}{balance}"
+  set-success: "&aSuccessfully set {player}'s balance to {symbol}{amount}!"
+  usage: "&cUsage: /{command} <give|take|set> <player> <amount>"
+  batch-start: "&eExecuting batch operation..."
+  giveall-usage: "&cUsage: /{command} giveall <all|online> <amount>"
+  giveall-success: "&aSuccessfully gave {symbol}{amount} to {count} players! &a(Failed: {failed})"
+  takeall-usage: "&cUsage: /{command} takeall <all|online> <amount>"
+  takeall-success: "&aSuccessfully took {symbol}{amount} from {count} players! &a(Failed: {failed})"
+  setall-usage: "&cUsage: /{command} setall <all|online> <amount>"
+  setall-success: "&aSuccessfully set {count} players' balance to {symbol}{amount}! &a(Failed: {failed})"
+
+# Leaderboard
+top:
+  header: "&e========== &6{title} &e=========="
+  footer: "&e===================================="
+  page-info: "&7Page {page}/{total}"
+  format: "&f{rank}. &e{player} &7- {symbol}{balance}"
+  no-data: "&cNo data available"
+  usage: "&cUsage: /{command} top <all|income> [page]"
+
+# Look up player
+look:
+  usage: "&cUsage: /{command} look <player>"
+
+# Transaction history
+history:
+  header: "&e========== &6{player}'s Transaction History &e=========="
+  footer: "&e===================================="
+  page-info: "&7Page {page}/{total} &8({count} records)"
+  format: "&7{direction} &f{action} &e{player} &7- {symbol}{amount} &8({time})"
+  no-data: "&cNo transaction records"
+  error: "&cAn error occurred while querying transaction history"
+  direction-send: "→"
+  direction-receive: "←"
+  action-send: "sent to"
+  action-receive: "received from"
+
+# Time format
+time:
+  days-ago: "{days} days ago"
+  hours-ago: "{hours} hours ago"
+  minutes-ago: "{minutes} minutes ago"
+  just-now: "just now"
+
+# Offline transfer tips
+offline-transfer:
+  tips: "&eYou received {count} transfers while offline!"
+
+# Help
+help:
+  header: "&e========== &6WooEco Help &e=========="
+  balance: "&e/{command} &7- Check balance"
+  pay: "&e/{command} pay <player> <amount> &7- Transfer money"
+  income: "&e/{command} income &7- Check today's income"
+  look: "&e/{command} look <player> &7- Check other player's balance"
+  top: "&e/{command} top <all|income> [page] &7- Leaderboard"
+  history: "&e/{command} history [player] [page] &7- View transaction history"
+  admin-give: "&e/{command} give <player> <amount> &7- Give money"
+  admin-giveall: "&e/{command} giveall <all|online> <amount> &7- Batch give"
+  admin-take: "&e/{command} take <player> <amount> &7- Take money"
+  admin-takeall: "&e/{command} takeall <all|online> <amount> &7- Batch take"
+  admin-set: "&e/{command} set <player> <amount> &7- Set balance"
+  admin-setall: "&e/{command} setall <all|online> <amount> &7- Batch set"
+  reload: "&e/{command} reload &7- Reload config"
+  footer: "&e===================================="

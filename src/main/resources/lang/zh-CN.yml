@@ -1,0 +1,104 @@
+prefix: "&a[WooEco] &r"
+
+# 通用消息
+no-permission: "&c你没有权限执行此操作！"
+player-only: "&c此命令只能由玩家执行！"
+player-not-found: "&c玩家 {player} 不存在或从未加入服务器！"
+invalid-amount: "&c无效的金额！"
+invalid-number: "&c请输入有效的数字！"
+reload-success: "&a配置重载成功！"
+unknown-command: "&c未知的命令！请使用 /{command} help 查看帮助"
+
+# 货币相关
+currency:
+  balance: "&a你的余额: {symbol}{balance}"
+  balance-other: "&a玩家 {player} 的余额: {symbol}{balance}"
+  balance-top: "&e========== &6财富排行榜 &e=========="
+  income-top: "&e========== &6日收入排行榜 &e=========="
+
+# 转账相关
+transaction:
+  pay-usage: "&c用法: /{command} pay <玩家> <金额>"
+  pay-self: "&c你不能给自己转账！"
+  pay-insufficient: "&c你的余额不足！需要: {symbol}{amount}"
+  pay-min: "&c最小转账金额为 {symbol}{min}"
+  pay-max: "&c最大转账金额为 {symbol}{max}"
+  pay-success: "&a成功向 {player} 转账 {symbol}{amount}！"
+  pay-received: "&a你收到来自 {player} 的转账: {symbol}{amount}"
+  tax-deducted: "&7(扣除税费: {symbol}{tax})"
+  error: "&c交易失败: {error}"
+
+# 收入相关
+income:
+  today: "&a你今日的收入: {symbol}{income}"
+  today-other: "&a玩家 {player} 今日的收入: {symbol}{income}"
+
+# 管理命令
+admin:
+  give-success: "&a成功给予 {player} {symbol}{amount}！"
+  take-success: "&a成功从 {player} 扣除 {symbol}{amount}！"
+  take-insufficient: "&c玩家 {player} 余额不足！当前余额: {symbol}{balance}"
+  set-success: "&a成功将 {player} 的余额设置为 {symbol}{amount}！"
+  usage: "&c用法: /{command} <give|take|set> <玩家> <金额>"
+  batch-start: "&e正在执行批量操作..."
+  giveall-usage: "&c用法: /{command} giveall <all|online> <金额>"
+  giveall-success: "&a成功给予 {count} 名玩家 {symbol}{amount}！&a(失败: {failed})"
+  takeall-usage: "&c用法: /{command} takeall <all|online> <金额>"
+  takeall-success: "&a成功从 {count} 名玩家扣除 {symbol}{amount}！&a(失败: {failed})"
+  setall-usage: "&c用法: /{command} setall <all|online> <金额>"
+  setall-success: "&a成功设置 {count} 名玩家余额为 {symbol}{amount}！&a(失败: {failed})"
+
+# 排行榜
+top:
+  header: "&e========== &6{title} &e=========="
+  footer: "&e===================================="
+  page-info: "&7第 {page}/{total} 页"
+  format: "&f{rank}. &e{player} &7- {symbol}{balance}"
+  no-data: "&c暂无数据"
+  usage: "&c用法: /{command} top <all|income> [页码]"
+
+# 查看玩家
+look:
+  usage: "&c用法: /{command} look <玩家名>"
+
+# 交易历史
+history:
+  header: "&e========== &6{player} 的交易历史 &e=========="
+  footer: "&e===================================="
+  page-info: "&7第 {page}/{total} 页 &8(共 {count} 条记录)"
+  format: "&7{direction} &f{action} &e{player} &7- {symbol}{amount} &8({time})"
+  no-data: "&c暂无交易记录"
+  error: "&c查询交易历史时发生错误"
+  direction-send: "→"
+  direction-receive: "←"
+  action-send: "发送给"
+  action-receive: "收到来自"
+
+# 时间格式
+time:
+  days-ago: "{days}天前"
+  hours-ago: "{hours}小时前"
+  minutes-ago: "{minutes}分钟前"
+  just-now: "刚刚"
+
+# 离线交易提示
+offline-transfer:
+  tips: "&e你离线期间收到了 {count} 笔转账！"
+
+# 帮助
+help:
+  header: "&e========== &6WooEco 帮助 &e=========="
+  balance: "&e/{command} &7- 查看余额"
+  pay: "&e/{command} pay <玩家> <金额> &7- 转账"
+  income: "&e/{command} income &7- 查看今日收入"
+  look: "&e/{command} look <玩家> &7- 查看其他玩家余额"
+  top: "&e/{command} top <all|income> [页码] &7- 排行榜"
+  history: "&e/{command} history [玩家] [页码] &7- 查看交易历史"
+  admin-give: "&e/{command} give <玩家> <金额> &7- 给予金币"
+  admin-giveall: "&e/{command} giveall <all|online> <金额> &7- 批量给予"
+  admin-take: "&e/{command} take <玩家> <金额> &7- 扣除金币"
+  admin-takeall: "&e/{command} takeall <all|online> <金额> &7- 批量扣除"
+  admin-set: "&e/{command} set <玩家> <金额> &7- 设置余额"
+  admin-setall: "&e/{command} setall <all|online> <金额> &7- 批量设置"
+  reload: "&e/{command} reload &7- 重载配置"
+  footer: "&e===================================="

@@ -1,0 +1,189 @@
+# WooEco 主配置文件
+# 作者: oolongho
+
+settings:
+  debug: false
+  language: zh-CN
+  auto-save-interval: 300
+  
+  # UUID模式设置
+  # Default: 根据server.properties的online-mode自动判断
+  # Online: 始终使用正版UUID
+  # Offline: 支持离线UUID，适合离线服务器
+  uuid-mode: Default
+  
+  # 用户名是否忽略大小写 (适合离线服务器)
+  username-ignore-case: false
+
+# 性能设置
+performance:
+  # 异步操作超时时间（秒）
+  async-timeout: 3
+  # 是否强制异步执行（建议保持false）
+  force-async: false
+  # 是否禁用缓存 (直接读写数据库)
+  # 警告: 禁用缓存会显著降低性能，仅用于调试
+  disable-cache: false
+
+# 调试设置
+debug:
+  # 是否启用调试模式
+  enabled: false
+  
+  # 是否记录到文件 (logs/debug_*.log)
+  log-to-file: true
+  
+  # 是否输出到控制台
+  log-to-console: true
+  
+  # 是否发送给在线管理员 (需要wooeco.admin.debug权限)
+  log-to-online-admins: false
+  
+  # 调试类别 (ALL表示所有类别)
+  # 可选: DATABASE, ECONOMY, TRANSACTION, CACHE, SYNC, COMMAND, EVENT, CONFIG, API
+  categories:
+    - "ALL"
+
+# 货币设置
+currency:
+  # 货币名称
+  singular-name: "金币"
+  plural-name: "金币"
+  # 货币符号 (支持颜色代码)
+  symbol: "&e￥&r"
+  
+  # 命令别名
+  # 注意: 别名不能与其他插件的命令冲突
+  aliases:
+    - "money"
+    - "bal"
+    - "eco"
+  
+  # 余额设置
+  starting-balance: 0
+  max-balance: 10000000000000000
+  
+  # 余额是否为整数
+  integer-balance: false
+  
+  # 金额多余位数的舍入方法
+  # 0: 向下舍入, 1: 向上舍入, 2: 四舍五入
+  rounding-mode: 2
+  
+  # 显示格式设置
+  format:
+    # 千分位分隔符
+    thousands-separator: ","
+    # 小数位数 (integer-balance为true时忽略)
+    decimal-places: 2
+    # 显示格式 (%balance%: 余额, %currencyname%: 货币名称)
+    display-format: "%balance% %currencyname%"
+    
+  # 余额缩写设置
+  format-balance:
+    # 是否启用余额缩写
+    enabled: false
+    # 缩写格式 (大于等于该值时显示缩写)
+    thresholds:
+      1000: "k"
+      1000000: "m"
+      1000000000: "b"
+
+# 交易设置
+transaction:
+  # 最小转账金额
+  min-amount: 1
+  # 最大转账金额
+  max-amount: 1000000
+  
+  # 离线交易提示
+  # 玩家上线时提示离线期间收到的转账数量
+  offline-transfer-tips: true
+  
+  # 交易税设置
+  tax:
+    enabled: true
+    # 税率 (百分比, 0-100)
+    rate: 5
+    # 税收接收者 (null=销毁税收, uuid=指定玩家UUID)
+    receiver: null
+
+# 排行榜设置
+leaderboard:
+  # 缓存刷新间隔(秒)
+  cache-refresh: 60
+  # 每页显示数量
+  per-page: 10
+  # 排行榜黑名单 (这些玩家不会显示在排行榜上)
+  blacklist:
+    enabled: false
+    # 玩家名列表
+    players:
+      - "Notch"
+    # UUID列表
+    uuids: []
+
+# 数据库设置
+database:
+  # 数据库类型: SQLite 或 MySQL
+  type: SQLite
+  
+  # SQLite 设置 (type为SQLite时使用)
+  file: "data.db"
+  
+  # MySQL 设置 (type为MySQL时使用)
+  mysql:
+    host: localhost
+    port: 3306
+    database: wooeco
+    user: root
+    password: ""
+    # 连接池大小
+    pool-size: 10
+    # 表前缀
+    table-prefix: "wooeco_"
+  
+  # 自动保存间隔(秒)
+  auto-save: 60
+
+# 跨服同步设置 (使用Redis)
+sync:
+  # 是否启用跨服同步
+  enable: false
+  
+  # Redis 设置
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    # 消息通道名称
+    channel: "wooeco:sync"
+  
+  # 服务器标识 (用于区分消息来源，每个服务器应该不同)
+  server-id: "server-1"
+
+# 日志设置
+logging:
+  # 是否记录交易日志
+  transaction: true
+  # 是否记录管理操作日志
+  admin: true
+  # 日志保留天数 (0=永久保留)
+  retention-days: 30
+
+# 非玩家账户设置
+# 用于城镇、势力、银行等非玩家实体
+non-player-account:
+  # 是否启用非玩家账户
+  enable: false
+  
+  # 白名单设置
+  whitelist:
+    # 是否启用白名单
+    enable: false
+    # 允许的账户名前缀列表
+    fields-list:
+      - "town-"
+      - "nation-"
+      - "bank-"
+      - "tax"

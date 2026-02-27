@@ -1,0 +1,36 @@
+# Gradle
+.gradle/
+build/
+out/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.code-workspace
+
+# Eclipse
+.project
+.classpath
+.settings/
+bin/
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+*.bak
+
+# Plugin specific
+/logs/
+/debug/
+/data.db
+/data.db-journal
+/data.db-wal
+*.jar
+
+# Sensitive files
+*.pem
+*.key
