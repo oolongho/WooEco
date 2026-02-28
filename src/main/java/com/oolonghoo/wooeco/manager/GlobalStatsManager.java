@@ -2,7 +2,6 @@ package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
-import com.oolonghoo.wooeco.util.AsyncUtils;
 import com.oolonghoo.wooeco.util.ThreadUtils;
 
 import java.math.BigDecimal;

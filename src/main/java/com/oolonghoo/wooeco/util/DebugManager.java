@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * 调试管理器
@@ -19,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  * 
  * @author oolongho
  */
+@SuppressWarnings("deprecation")
 public class DebugManager {
     
     private final WooEco plugin;
@@ -141,7 +141,7 @@ public class DebugManager {
     }
     
     public void incrementCounter(String name) {
-        counters.merge(name, 1L, Long::sum);
+        counters.merge(name, 1L, (oldVal, newVal) -> oldVal + newVal);
     }
     
     public long getCounter(String name) {

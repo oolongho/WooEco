@@ -60,9 +60,9 @@ public class CommandAliasManager {
         }
         
         DynamicCommand dynamicCommand = new DynamicCommand(aliasLower, mainCommand);
-        
+
         try {
-            commandMap.register(plugin.getDescription().getName(), dynamicCommand);
+            commandMap.register(plugin.getPluginMeta().getName(), dynamicCommand);
             registeredAliases.put(aliasLower, dynamicCommand);
         } catch (Exception e) {
             plugin.getLogger().warning("注册命令别名失败: " + alias + " - " + e.getMessage());
@@ -80,7 +80,7 @@ public class CommandAliasManager {
             
             for (String alias : registeredAliases.keySet()) {
                 knownCommands.remove(alias);
-                knownCommands.remove(plugin.getDescription().getName().toLowerCase() + ":" + alias);
+                knownCommands.remove(plugin.getPluginMeta().getName().toLowerCase() + ":" + alias);
             }
             
             registeredAliases.clear();

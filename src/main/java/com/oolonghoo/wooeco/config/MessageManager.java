@@ -3,7 +3,6 @@ package com.oolonghoo.wooeco.config;
 import com.oolonghoo.wooeco.WooEco;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -71,6 +70,7 @@ public class MessageManager extends ConfigLoader {
         return result;
     }
     
+    @SuppressWarnings("deprecation")
     public static String translateColors(String message) {
         if (message == null || message.isEmpty()) {
             return message;
@@ -88,7 +88,7 @@ public class MessageManager extends ConfigLoader {
             matcher.appendReplacement(result, replacement.toString());
         }
         matcher.appendTail(result);
-        
+
         return ChatColor.translateAlternateColorCodes('&', result.toString());
     }
     

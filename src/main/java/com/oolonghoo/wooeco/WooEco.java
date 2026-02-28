@@ -15,9 +15,6 @@ import com.oolonghoo.wooeco.sync.RedisSyncManager;
 import com.oolonghoo.wooeco.util.UUIDHandler;
 import com.oolonghoo.wooeco.vault.VaultHook;
 import com.oolonghoo.wooeco.util.DebugManager;
-import com.oolonghoo.wooeco.util.AsyncUtils;
-import com.oolonghoo.wooeco.util.ThreadUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -103,12 +100,12 @@ public class WooEco extends JavaPlugin {
         }
         
         WooEcoAPI.initialize(this);
-        
+
         registerCommands();
         registerListeners();
         startTasks();
-        
-        getLogger().info("WooEco v" + getDescription().getVersion() + " 已启用!");
+
+        getLogger().info("WooEco v" + getPluginMeta().getVersion() + " 已启用!");
         getLogger().info("数据库类型: " + databaseConfig.getType());
     }
     

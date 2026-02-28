@@ -2,8 +2,6 @@ package com.oolonghoo.wooeco.api;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.manager.EconomyManager;
-import com.oolonghoo.wooeco.manager.LeaderboardManager;
-import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.manager.TransactionManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 

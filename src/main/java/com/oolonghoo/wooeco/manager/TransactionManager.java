@@ -22,7 +22,6 @@ public class TransactionManager {
     private final PlayerDataManager playerDataManager;
     private final EconomyManager economyManager;
     private final TaxManager taxManager;
-    private final LogManager logManager;
     private final TransactionDAO transactionDAO;
     
     public TransactionManager(WooEco plugin) {
@@ -30,7 +29,6 @@ public class TransactionManager {
         this.playerDataManager = plugin.getPlayerDataManager();
         this.economyManager = plugin.getEconomyManager();
         this.taxManager = plugin.getTaxManager();
-        this.logManager = plugin.getLogManager();
         this.transactionDAO = plugin.getDatabaseManager().getTransactionDAO();
     }
     
