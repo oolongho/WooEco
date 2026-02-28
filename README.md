@@ -1,6 +1,6 @@
 # WooEco
 
-🍵 高性能 Minecraft 经济插件
+🍵一款高性能、线程安全的 Minecraft 经济插件
 
 ## 特色
 
