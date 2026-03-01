@@ -43,14 +43,16 @@
 
 | 命令 | 描述 | 权限 |
 |------|------|------|
-| `/wooeco` | 查看余额 | `wooeco.balance` |
-| `/wooeco pay <玩家> <金额>` | 向玩家转账 | `wooeco.pay` |
-| `/wooeco income [玩家]` | 查看日收入 | `wooeco.income` |
-| `/wooeco history [玩家] [页码]` | 查看交易历史 | `wooeco.history` |
-| `/wooeco top all/income [页码]` | 查看排行榜 | `wooeco.top` |
-| `/wooeco give/take/set <玩家> <金额>` | 管理员操作 | `wooeco.admin.*` |
-| `/wooeco giveall/takeall/setall <all/online> <金额>` | 批量操作 | `wooeco.admin.*` |
-| `/wooeco reload` | 重载配置 | `wooeco.admin.reload` |
+| `/eco` 或 `/money` | 查看自己的余额 | `wooeco.balance` |
+| `/eco look` | 查看自己的余额 | `wooeco.balance` |
+| `/eco look <玩家>` | 查看其他玩家的余额 | `wooeco.balance.other` |
+| `/eco pay <玩家> <金额>` | 向玩家转账 | `wooeco.pay` |
+| `/eco income [玩家]` | 查看日收入 | `wooeco.income` |
+| `/eco history [玩家] [页码]` | 查看交易历史 | `wooeco.history` |
+| `/eco top all/income [页码]` | 查看排行榜 | `wooeco.top` |
+| `/eco give/take/set <玩家> <金额>` | 管理员操作 | `wooeco.admin.*` |
+| `/eco giveall/takeall/setall <all/online> <金额>` | 批量操作 | `wooeco.admin.*` |
+| `/eco reload` | 重载配置 | `wooeco.admin.reload` |
 | `/pay <玩家> <金额>` | 快捷转账 | `wooeco.pay` |
 | `/income [玩家]` | 快捷查看收入 | `wooeco.income` |
 
