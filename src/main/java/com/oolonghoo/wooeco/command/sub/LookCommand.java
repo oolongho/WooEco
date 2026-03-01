@@ -38,16 +38,45 @@ public class LookCommand extends AbstractSubCommandHandler {
     
     @Override
     public boolean execute(CommandSender sender, String[] args) {
+        if (args.length == 0) {
+            return showOwnBalance(sender);
+        } else {
+            return showOtherBalance(sender, args[0]);
+        }
+    }
+    
+    private boolean showOwnBalance(CommandSender sender) {
+        if (!requirePlayer(sender)) {
+            return true;
+        }
+        
         if (!requirePermission(sender, "wooeco.balance.other")) {
             return true;
         }
         
-        if (args.length < 1) {
-            sender.sendMessage(messages.getWithPrefix("look.usage"));
+        org.bukkit.entity.Player player = (org.bukkit.entity.Player) sender;
+        String playerName = player.getName();
+        PlayerAccount account = playerDataManager.getAccount(playerName);
+        if (account == null) {
+            messages.send(sender, "player-not-found", Map.of("player", playerName));
             return true;
         }
         
-        String targetName = args[0];
+        String formatted = plugin.getCurrencyConfig().format(account.getBalanceDouble());
+        sender.sendMessage(messages.getWithPrefix("currency.balance-other", Map.of(
+            "player", account.getPlayerName(),
+            "symbol", messages.getSymbol(),
+            "balance", formatted
+        )));
+        
+        return true;
+    }
+    
+    private boolean showOtherBalance(CommandSender sender, String targetName) {
+        if (!requirePermission(sender, "wooeco.balance.other")) {
+            return true;
+        }
+        
         PlayerAccount account = playerDataManager.getAccount(targetName);
         if (account == null) {
             messages.send(sender, "player-not-found", Map.of("player", targetName));

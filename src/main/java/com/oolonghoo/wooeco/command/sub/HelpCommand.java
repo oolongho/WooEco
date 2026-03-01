@@ -34,10 +34,9 @@ public class HelpCommand extends AbstractSubCommandHandler {
     @Override
     public boolean execute(CommandSender sender, String[] args) {
         sender.sendMessage(messages.get("help.header"));
-        sender.sendMessage(messages.get("help.balance", Map.of("command", "eco")));
+        sender.sendMessage(messages.get("help.look", Map.of("command", "eco")));
         sender.sendMessage(messages.get("help.pay", Map.of("command", "eco")));
         sender.sendMessage(messages.get("help.income", Map.of("command", "eco")));
-        sender.sendMessage(messages.get("help.look", Map.of("command", "eco")));
         sender.sendMessage(messages.get("help.top", Map.of("command", "eco")));
         sender.sendMessage(messages.get("help.history", Map.of("command", "eco")));
         

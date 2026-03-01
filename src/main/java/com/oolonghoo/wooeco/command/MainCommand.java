@@ -32,7 +32,6 @@ public class MainCommand implements CommandExecutor, TabCompleter {
      * 注册所有子命令处理器
      */
     private void registerHandlers() {
-        register(new BalanceCommand(plugin));
         register(new PayCommandHandler(plugin));
         register(new IncomeCommandHandler(plugin));
         register(new TopCommand(plugin));
@@ -64,8 +63,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         
         boolean result;
         if (args.length == 0) {
-            SubCommandHandler balanceHandler = handlers.get("balance");
-            result = balanceHandler != null && balanceHandler.execute(sender, args);
+            SubCommandHandler lookHandler = handlers.get("look");
+            result = lookHandler != null && lookHandler.execute(sender, args);
         } else {
             String subCommand = args[0].toLowerCase();
             SubCommandHandler handler = handlers.get(subCommand);
