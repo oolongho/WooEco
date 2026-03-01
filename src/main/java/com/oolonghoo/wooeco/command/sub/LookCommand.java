@@ -50,7 +50,7 @@ public class LookCommand extends AbstractSubCommandHandler {
             return true;
         }
         
-        if (!requirePermission(sender, "wooeco.balance.other")) {
+        if (!requirePermission(sender, "wooeco.balance")) {
             return true;
         }
         
@@ -63,8 +63,7 @@ public class LookCommand extends AbstractSubCommandHandler {
         }
         
         String formatted = plugin.getCurrencyConfig().format(account.getBalanceDouble());
-        sender.sendMessage(messages.getWithPrefix("currency.balance-other", Map.of(
-            "player", account.getPlayerName(),
+        sender.sendMessage(messages.getWithPrefix("currency.balance", Map.of(
             "symbol", messages.getSymbol(),
             "balance", formatted
         )));
