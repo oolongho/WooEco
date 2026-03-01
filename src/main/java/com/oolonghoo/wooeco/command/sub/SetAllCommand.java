@@ -1,7 +1,6 @@
 package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
-import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
 import com.oolonghoo.wooeco.manager.EconomyManager;
 import org.bukkit.command.CommandSender;

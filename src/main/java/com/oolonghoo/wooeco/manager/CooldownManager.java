@@ -17,14 +17,12 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CooldownManager {
     
-    private final WooEco plugin;
     private final boolean enabled;
     private final Map<String, Integer> cooldowns;
     private final String cooldownMessage;
     private final Map<UUID, Map<String, Long>> playerCooldowns;
     
     public CooldownManager(WooEco plugin) {
-        this.plugin = plugin;
         this.enabled = plugin.getConfig().getBoolean("command-cooldown.enabled", true);
         this.cooldowns = new HashMap<>();
         this.playerCooldowns = new ConcurrentHashMap<>();

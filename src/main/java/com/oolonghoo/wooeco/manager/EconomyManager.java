@@ -311,7 +311,6 @@ public class EconomyManager {
             
             playerDataManager.invalidateAllCache();
             
-            int successCount = 0;
             for (PlayerAccount account : accounts) {
                 if (account.getBalanceDouble() >= amount.doubleValue()) {
                     BalanceChangeEvent event = new BalanceChangeEvent(
@@ -342,7 +341,6 @@ public class EconomyManager {
                             account.getBalanceDouble() - amount.doubleValue()
                         );
                     }
-                    successCount++;
                 }
             }
             
