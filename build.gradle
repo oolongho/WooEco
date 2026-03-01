@@ -43,7 +43,5 @@ processResources {
 
 jar {
     archiveBaseName.set('WooEco')
-    archiveVersion.set(version)
     archiveClassifier.set('')
-    destinationDirectory.set(file('.'))
 }
