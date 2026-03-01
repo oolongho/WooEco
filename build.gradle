@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'com.oolonghoo'
-version = '1.1.0'
+version = '1.1.2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_21
@@ -43,5 +43,7 @@ processResources {
 
 jar {
     archiveBaseName.set('WooEco')
+    archiveVersion.set(version)
     archiveClassifier.set('')
+    destinationDirectory.set(file('.'))
 }
