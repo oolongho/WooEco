@@ -397,4 +397,17 @@ public class PlayerDataManager {
     public boolean isCacheDisabled() {
         return disableCache;
     }
+    
+    public PlayerDAO getPlayerDAO() {
+        return playerDAO;
+    }
+    
+    public void invalidateAllCache() {
+        if (disableCache) {
+            return;
+        }
+        
+        onlineCache.clear();
+        nameIndex.clear();
+    }
 }

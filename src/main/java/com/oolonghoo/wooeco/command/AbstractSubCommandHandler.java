@@ -2,6 +2,7 @@ package com.oolonghoo.wooeco.command;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.config.MessageManager;
+import com.oolonghoo.wooeco.manager.CooldownManager;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -42,6 +43,35 @@ public abstract class AbstractSubCommandHandler implements SubCommandHandler {
             messages.send(sender, "no-permission");
             return false;
         }
+        return true;
+    }
+    
+    /**
+     * 检查命令冷却
+     * @param sender 发送者
+     * @return true 如果可以执行命令，false 如果在冷却中
+     */
+    protected boolean checkCooldown(CommandSender sender) {
+        if (!(sender instanceof Player)) {
+            return true;
+        }
+        
+        CooldownManager cooldownManager = plugin.getCooldownManager();
+        if (cooldownManager == null || !cooldownManager.isEnabled()) {
+            return true;
+        }
+        
+        Player player = (Player) sender;
+        String command = getName();
+        
+        if (cooldownManager.isOnCooldown(player, command)) {
+            int remaining = cooldownManager.getRemainingCooldown(player, command);
+            String message = cooldownManager.getCooldownMessage(remaining);
+            sender.sendMessage(MessageManager.translateColors(message));
+            return false;
+        }
+        
+        cooldownManager.setCooldown(player, command);
         return true;
     }
     

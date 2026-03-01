@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco;
 import com.oolonghoo.wooeco.api.WooEcoAPI;
 import com.oolonghoo.wooeco.command.*;
 import com.oolonghoo.wooeco.config.ConfigLoader;
+import com.oolonghoo.wooeco.config.ConfigValidator;
 import com.oolonghoo.wooeco.config.CurrencyConfig;
 import com.oolonghoo.wooeco.config.DatabaseConfig;
 import com.oolonghoo.wooeco.config.MessageManager;
@@ -46,6 +47,7 @@ public class WooEco extends JavaPlugin {
     private VaultHook vaultHook;
     private DebugManager debugManager;
     private CommandAliasManager commandAliasManager;
+    private CooldownManager cooldownManager;
     
     @Override
     public void onEnable() {
@@ -53,6 +55,11 @@ public class WooEco extends JavaPlugin {
         
         configLoader = new ConfigLoader(this, "config.yml");
         configLoader.initialize();
+        
+        ConfigValidator configValidator = new ConfigValidator(this);
+        if (!configValidator.validate(getConfig())) {
+            getLogger().warning("配置文件存在错误，部分功能可能无法正常工作");
+        }
         
         databaseConfig = new DatabaseConfig(this);
         databaseConfig.load();
@@ -71,6 +78,7 @@ public class WooEco extends JavaPlugin {
         databaseManager.initialize();
         
         debugManager = new DebugManager(this);
+        cooldownManager = new CooldownManager(this);
         
         playerDataManager = new PlayerDataManager(this);
         logManager = new LogManager(this);
@@ -286,5 +294,9 @@ public class WooEco extends JavaPlugin {
     
     public DebugManager getDebugManager() {
         return debugManager;
+    }
+    
+    public CooldownManager getCooldownManager() {
+        return cooldownManager;
     }
 }

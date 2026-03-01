@@ -24,6 +24,10 @@ performance:
   # 是否禁用缓存 (直接读写数据库)
   # 警告: 禁用缓存会显著降低性能，仅用于调试
   disable-cache: false
+  # 最大并发操作数
+  max-concurrent-operations: 10
+  # 操作队列最大大小
+  max-queue-size: 100
 
 # 调试设置
 debug:
@@ -107,6 +111,29 @@ transaction:
     rate: 5
     # 税收接收者 (null=销毁税收, uuid=指定玩家UUID)
     receiver: null
+
+# 命令冷却设置
+command-cooldown:
+  # 是否启用命令冷却
+  enabled: true
+  # 各命令冷却时间(秒)
+  # 设为0表示无冷却
+  cooldowns:
+    pay: 3
+    give: 0
+    giveall: 0
+    take: 0
+    takeall: 0
+    set: 0
+    setall: 0
+    balance: 0
+    look: 0
+    top: 5
+    history: 3
+    income: 0
+  # 冷却提示消息
+  # %time%: 剩余冷却时间(秒)
+  message: "&c请等待 %time% 秒后再次使用此命令"
 
 # 排行榜设置
 leaderboard:

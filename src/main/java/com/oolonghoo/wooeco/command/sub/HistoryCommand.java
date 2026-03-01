@@ -54,6 +54,9 @@ public class HistoryCommand extends AbstractSubCommandHandler {
             if (!requirePermission(sender, "wooeco.history")) {
                 return true;
             }
+            if (!checkCooldown(sender)) {
+                return true;
+            }
             targetUuid = ((Player) sender).getUniqueId();
             targetName = sender.getName();
         } else if (args.length == 1) {
@@ -65,10 +68,16 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                 if (!requirePermission(sender, "wooeco.history")) {
                     return true;
                 }
+                if (!checkCooldown(sender)) {
+                    return true;
+                }
                 targetUuid = ((Player) sender).getUniqueId();
                 targetName = sender.getName();
             } catch (NumberFormatException e) {
                 if (!requirePermission(sender, "wooeco.history.other")) {
+                    return true;
+                }
+                if (!checkCooldown(sender)) {
                     return true;
                 }
                 PlayerAccount account = playerDataManager.getAccount(args[0]);
@@ -81,6 +90,9 @@ public class HistoryCommand extends AbstractSubCommandHandler {
             }
         } else if (args.length >= 2) {
             if (!requirePermission(sender, "wooeco.history.other")) {
+                return true;
+            }
+            if (!checkCooldown(sender)) {
                 return true;
             }
             PlayerAccount account = playerDataManager.getAccount(args[0]);

@@ -32,15 +32,7 @@ public class PlayerDAO {
             stmt.setString(1, uuid.toString());
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return new PlayerAccount(
-                    UUID.fromString(rs.getString("uuid")),
-                    rs.getString("player_name"),
-                    rs.getDouble("balance"),
-                    rs.getDouble("daily_income"),
-                    rs.getLong("last_income_reset"),
-                    rs.getLong("created_at"),
-                    rs.getLong("updated_at")
-                );
+                return mapResultSetToPlayerAccount(rs);
             }
         } finally {
             dbManager.getReadLock().unlock();
@@ -56,15 +48,7 @@ public class PlayerDAO {
             stmt.setString(1, name);
             ResultSet rs = stmt.executeQuery();
             if (rs.next()) {
-                return new PlayerAccount(
-                    UUID.fromString(rs.getString("uuid")),
-                    rs.getString("player_name"),
-                    rs.getDouble("balance"),
-                    rs.getDouble("daily_income"),
-                    rs.getLong("last_income_reset"),
-                    rs.getLong("created_at"),
-                    rs.getLong("updated_at")
-                );
+                return mapResultSetToPlayerAccount(rs);
             }
         } finally {
             dbManager.getReadLock().unlock();
@@ -126,15 +110,7 @@ public class PlayerDAO {
             stmt.setInt(1, limit);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                accounts.add(new PlayerAccount(
-                    UUID.fromString(rs.getString("uuid")),
-                    rs.getString("player_name"),
-                    rs.getDouble("balance"),
-                    rs.getDouble("daily_income"),
-                    rs.getLong("last_income_reset"),
-                    rs.getLong("created_at"),
-                    rs.getLong("updated_at")
-                ));
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
         } finally {
             dbManager.getReadLock().unlock();
@@ -151,15 +127,7 @@ public class PlayerDAO {
             stmt.setInt(1, limit);
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                accounts.add(new PlayerAccount(
-                    UUID.fromString(rs.getString("uuid")),
-                    rs.getString("player_name"),
-                    rs.getDouble("balance"),
-                    rs.getDouble("daily_income"),
-                    rs.getLong("last_income_reset"),
-                    rs.getLong("created_at"),
-                    rs.getLong("updated_at")
-                ));
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
         } finally {
             dbManager.getReadLock().unlock();
@@ -175,15 +143,7 @@ public class PlayerDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             ResultSet rs = stmt.executeQuery();
             while (rs.next()) {
-                accounts.add(new PlayerAccount(
-                    UUID.fromString(rs.getString("uuid")),
-                    rs.getString("player_name"),
-                    rs.getDouble("balance"),
-                    rs.getDouble("daily_income"),
-                    rs.getLong("last_income_reset"),
-                    rs.getLong("created_at"),
-                    rs.getLong("updated_at")
-                ));
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
         } finally {
             dbManager.getReadLock().unlock();
@@ -275,5 +235,115 @@ public class PlayerDAO {
             dbManager.getReadLock().unlock();
         }
         return java.math.BigDecimal.ZERO;
+    }
+    
+    private PlayerAccount mapResultSetToPlayerAccount(ResultSet rs) throws SQLException {
+        return new PlayerAccount(
+            UUID.fromString(rs.getString("uuid")),
+            rs.getString("player_name"),
+            rs.getDouble("balance"),
+            rs.getDouble("daily_income"),
+            rs.getLong("last_income_reset"),
+            rs.getLong("created_at"),
+            rs.getLong("updated_at")
+        );
+    }
+    
+    public int depositAllBatch(double amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
+        String sql;
+        if (onlineOnly && onlineUuids != null && !onlineUuids.isEmpty()) {
+            StringBuilder placeholders = new StringBuilder();
+            for (int i = 0; i < onlineUuids.size(); i++) {
+                if (i > 0) placeholders.append(",");
+                placeholders.append("?");
+            }
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, daily_income = daily_income + ?, updated_at = ? WHERE uuid IN (" + placeholders + ")";
+        } else {
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, daily_income = daily_income + ?, updated_at = ?";
+        }
+        
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
+            stmt.setDouble(paramIndex++, amount);
+            stmt.setDouble(paramIndex++, amount);
+            stmt.setLong(paramIndex++, System.currentTimeMillis());
+            
+            if (onlineOnly && onlineUuids != null) {
+                for (UUID uuid : onlineUuids) {
+                    stmt.setString(paramIndex++, uuid.toString());
+                }
+            }
+            
+            return stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
+        }
+    }
+    
+    public int withdrawAllBatch(double amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
+        String sql;
+        if (onlineOnly && onlineUuids != null && !onlineUuids.isEmpty()) {
+            StringBuilder placeholders = new StringBuilder();
+            for (int i = 0; i < onlineUuids.size(); i++) {
+                if (i > 0) placeholders.append(",");
+                placeholders.append("?");
+            }
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = balance - ?, updated_at = ? WHERE balance >= ? AND uuid IN (" + placeholders + ")";
+        } else {
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = balance - ?, updated_at = ? WHERE balance >= ?";
+        }
+        
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
+            stmt.setDouble(paramIndex++, amount);
+            stmt.setLong(paramIndex++, System.currentTimeMillis());
+            stmt.setDouble(paramIndex++, amount);
+            
+            if (onlineOnly && onlineUuids != null) {
+                for (UUID uuid : onlineUuids) {
+                    stmt.setString(paramIndex++, uuid.toString());
+                }
+            }
+            
+            return stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
+        }
+    }
+    
+    public int setAllBatch(double amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
+        String sql;
+        if (onlineOnly && onlineUuids != null && !onlineUuids.isEmpty()) {
+            StringBuilder placeholders = new StringBuilder();
+            for (int i = 0; i < onlineUuids.size(); i++) {
+                if (i > 0) placeholders.append(",");
+                placeholders.append("?");
+            }
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = ?, updated_at = ? WHERE uuid IN (" + placeholders + ")";
+        } else {
+            sql = "UPDATE " + tablePrefix + "accounts SET balance = ?, updated_at = ?";
+        }
+        
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            int paramIndex = 1;
+            stmt.setDouble(paramIndex++, amount);
+            stmt.setLong(paramIndex++, System.currentTimeMillis());
+            
+            if (onlineOnly && onlineUuids != null) {
+                for (UUID uuid : onlineUuids) {
+                    stmt.setString(paramIndex++, uuid.toString());
+                }
+            }
+            
+            return stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
+        }
     }
 }

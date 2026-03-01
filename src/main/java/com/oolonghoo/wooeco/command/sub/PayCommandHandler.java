@@ -51,6 +51,10 @@ public class PayCommandHandler extends AbstractSubCommandHandler {
             return true;
         }
         
+        if (!checkCooldown(sender)) {
+            return true;
+        }
+        
         if (args.length < 2) {
             messages.send(sender, "transaction.pay-usage", Map.of("command", "eco pay"));
             return true;

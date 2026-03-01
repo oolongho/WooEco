@@ -42,6 +42,10 @@ public class TopCommand extends AbstractSubCommandHandler {
             return true;
         }
         
+        if (!checkCooldown(sender)) {
+            return true;
+        }
+        
         boolean incomeMode = false;
         int page = 1;
         

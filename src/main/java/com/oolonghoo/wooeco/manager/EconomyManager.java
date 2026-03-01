@@ -216,72 +216,208 @@ public class EconomyManager {
     }
     
     public BatchResult depositAll(BigDecimal amount, boolean onlineOnly, String operator, String operatorName) {
-        int success = 0;
-        int failed = 0;
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new BatchResult(0, 0, amount);
+        }
         
         java.util.Collection<PlayerAccount> accounts;
+        java.util.List<UUID> onlineUuids = null;
+        
         if (onlineOnly) {
             accounts = playerDataManager.getOnlineAccounts();
+            onlineUuids = new java.util.ArrayList<>();
+            for (PlayerAccount account : accounts) {
+                onlineUuids.add(account.getUuid());
+            }
         } else {
             accounts = playerDataManager.getAllAccounts();
         }
         
-        for (PlayerAccount account : accounts) {
-            EconomyResult result = deposit(account.getUuid(), amount, BalanceChangeReason.ADMIN, operator, operatorName);
-            if (result.isSuccess()) {
-                success++;
-            } else {
-                failed++;
-            }
+        int totalAccounts = accounts.size();
+        if (totalAccounts == 0) {
+            return new BatchResult(0, 0, amount);
         }
         
-        return new BatchResult(success, failed, amount);
+        try {
+            int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                .depositAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+            
+            playerDataManager.invalidateAllCache();
+            
+            for (PlayerAccount account : accounts) {
+                BalanceChangeEvent event = new BalanceChangeEvent(
+                    account.getUuid(), 
+                    account.getBalanceDouble(),
+                    account.getBalanceDouble() + amount.doubleValue(),
+                    amount.doubleValue(), 
+                    BalanceChangeReason.ADMIN
+                );
+                Bukkit.getPluginManager().callEvent(event);
+                
+                logManager.logBalanceChange(
+                    account.getUuid(), 
+                    account.getPlayerName(), 
+                    "DEPOSIT_ALL", 
+                    amount.doubleValue(), 
+                    account.getBalanceDouble(),
+                    account.getBalanceDouble() + amount.doubleValue(),
+                    operator, 
+                    operatorName, 
+                    null
+                );
+                
+                if (plugin.getRedisSyncManager() != null) {
+                    plugin.getRedisSyncManager().publishBalanceUpdate(
+                        account.getUuid(), 
+                        account.getPlayerName(), 
+                        account.getBalanceDouble() + amount.doubleValue()
+                    );
+                }
+            }
+            
+            return new BatchResult(updated, totalAccounts - updated, amount);
+        } catch (Exception e) {
+            plugin.getLogger().severe("批量存款失败: " + e.getMessage());
+            return new BatchResult(0, totalAccounts, amount);
+        }
     }
     
     public BatchResult withdrawAll(BigDecimal amount, boolean onlineOnly, String operator, String operatorName) {
-        int success = 0;
-        int failed = 0;
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new BatchResult(0, 0, amount);
+        }
         
         java.util.Collection<PlayerAccount> accounts;
+        java.util.List<UUID> onlineUuids = null;
+        
         if (onlineOnly) {
             accounts = playerDataManager.getOnlineAccounts();
+            onlineUuids = new java.util.ArrayList<>();
+            for (PlayerAccount account : accounts) {
+                onlineUuids.add(account.getUuid());
+            }
         } else {
             accounts = playerDataManager.getAllAccounts();
         }
         
-        for (PlayerAccount account : accounts) {
-            EconomyResult result = withdraw(account.getUuid(), amount, BalanceChangeReason.ADMIN, operator, operatorName);
-            if (result.isSuccess()) {
-                success++;
-            } else {
-                failed++;
-            }
+        int totalAccounts = accounts.size();
+        if (totalAccounts == 0) {
+            return new BatchResult(0, 0, amount);
         }
         
-        return new BatchResult(success, failed, amount);
+        try {
+            int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                .withdrawAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+            
+            playerDataManager.invalidateAllCache();
+            
+            int successCount = 0;
+            for (PlayerAccount account : accounts) {
+                if (account.getBalanceDouble() >= amount.doubleValue()) {
+                    BalanceChangeEvent event = new BalanceChangeEvent(
+                        account.getUuid(), 
+                        account.getBalanceDouble(),
+                        account.getBalanceDouble() - amount.doubleValue(),
+                        -amount.doubleValue(), 
+                        BalanceChangeReason.ADMIN
+                    );
+                    Bukkit.getPluginManager().callEvent(event);
+                    
+                    logManager.logBalanceChange(
+                        account.getUuid(), 
+                        account.getPlayerName(), 
+                        "WITHDRAW_ALL", 
+                        amount.doubleValue(), 
+                        account.getBalanceDouble(),
+                        account.getBalanceDouble() - amount.doubleValue(),
+                        operator, 
+                        operatorName, 
+                        null
+                    );
+                    
+                    if (plugin.getRedisSyncManager() != null) {
+                        plugin.getRedisSyncManager().publishBalanceUpdate(
+                            account.getUuid(), 
+                            account.getPlayerName(), 
+                            account.getBalanceDouble() - amount.doubleValue()
+                        );
+                    }
+                    successCount++;
+                }
+            }
+            
+            return new BatchResult(updated, totalAccounts - updated, amount);
+        } catch (Exception e) {
+            plugin.getLogger().severe("批量扣款失败: " + e.getMessage());
+            return new BatchResult(0, totalAccounts, amount);
+        }
     }
     
     public BatchResult setAll(BigDecimal amount, boolean onlineOnly, String operator, String operatorName) {
-        int success = 0;
-        int failed = 0;
+        if (amount.compareTo(BigDecimal.ZERO) < 0) {
+            return new BatchResult(0, 0, amount);
+        }
         
         java.util.Collection<PlayerAccount> accounts;
+        java.util.List<UUID> onlineUuids = null;
+        
         if (onlineOnly) {
             accounts = playerDataManager.getOnlineAccounts();
+            onlineUuids = new java.util.ArrayList<>();
+            for (PlayerAccount account : accounts) {
+                onlineUuids.add(account.getUuid());
+            }
         } else {
             accounts = playerDataManager.getAllAccounts();
         }
         
-        for (PlayerAccount account : accounts) {
-            EconomyResult result = set(account.getUuid(), amount, BalanceChangeReason.ADMIN, operator, operatorName);
-            if (result.isSuccess()) {
-                success++;
-            } else {
-                failed++;
-            }
+        int totalAccounts = accounts.size();
+        if (totalAccounts == 0) {
+            return new BatchResult(0, 0, amount);
         }
         
-        return new BatchResult(success, failed, amount);
+        try {
+            int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                .setAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+            
+            playerDataManager.invalidateAllCache();
+            
+            for (PlayerAccount account : accounts) {
+                BalanceChangeEvent event = new BalanceChangeEvent(
+                    account.getUuid(), 
+                    account.getBalanceDouble(),
+                    amount.doubleValue(),
+                    amount.subtract(account.getBalance()).doubleValue(), 
+                    BalanceChangeReason.ADMIN
+                );
+                Bukkit.getPluginManager().callEvent(event);
+                
+                logManager.logBalanceChange(
+                    account.getUuid(), 
+                    account.getPlayerName(), 
+                    "SET_ALL", 
+                    amount.subtract(account.getBalance()).abs().doubleValue(), 
+                    account.getBalanceDouble(),
+                    amount.doubleValue(),
+                    operator, 
+                    operatorName, 
+                    null
+                );
+                
+                if (plugin.getRedisSyncManager() != null) {
+                    plugin.getRedisSyncManager().publishBalanceUpdate(
+                        account.getUuid(), 
+                        account.getPlayerName(), 
+                        amount.doubleValue()
+                    );
+                }
+            }
+            
+            return new BatchResult(updated, totalAccounts - updated, amount);
+        } catch (Exception e) {
+            plugin.getLogger().severe("批量设置余额失败: " + e.getMessage());
+            return new BatchResult(0, totalAccounts, amount);
+        }
     }
     
     public static class BatchResult {
