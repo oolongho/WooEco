@@ -174,7 +174,9 @@ public class ThreadUtils {
                     runTask(() -> errorHandler.accept(e));
                 } else {
                     plugin.getLogger().severe("异步任务执行失败: " + e.getMessage());
-                    e.printStackTrace();
+                    for (StackTraceElement ste : e.getStackTrace()) {
+                        plugin.getLogger().severe("    at " + ste.toString());
+                    }
                 }
             }
         });
