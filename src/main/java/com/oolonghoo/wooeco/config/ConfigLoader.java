@@ -86,10 +86,7 @@ public class ConfigLoader {
         try {
             config.save(configFile);
         } catch (IOException e) {
-            plugin.getLogger().severe("无法保存配置文件: " + fileName);
-            for (StackTraceElement ste : e.getStackTrace()) {
-                plugin.getLogger().severe("    at " + ste.toString());
-            }
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "无法保存配置文件: " + fileName, e);
         }
     }
     

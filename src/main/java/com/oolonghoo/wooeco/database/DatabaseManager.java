@@ -54,10 +54,7 @@ public class DatabaseManager {
             
             plugin.getLogger().info("数据库初始化完成 (" + config.getType() + ")");
         } catch (SQLException e) {
-            plugin.getLogger().severe("数据库初始化失败: " + e.getMessage());
-            for (StackTraceElement ste : e.getStackTrace()) {
-                plugin.getLogger().severe("    at " + ste.toString());
-            }
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "数据库初始化失败: " + e.getMessage(), e);
         }
     }
     

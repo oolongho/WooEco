@@ -173,10 +173,7 @@ public class ThreadUtils {
                 if (errorHandler != null) {
                     runTask(() -> errorHandler.accept(e));
                 } else {
-                    plugin.getLogger().severe("异步任务执行失败: " + e.getMessage());
-                    for (StackTraceElement ste : e.getStackTrace()) {
-                        plugin.getLogger().severe("    at " + ste.toString());
-                    }
+                    plugin.getLogger().log(java.util.logging.Level.SEVERE, "异步任务执行失败: " + e.getMessage(), e);
                 }
             }
         });
