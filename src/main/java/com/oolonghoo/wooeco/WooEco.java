@@ -13,7 +13,6 @@ import com.oolonghoo.wooeco.listener.PlayerJoinListener;
 import com.oolonghoo.wooeco.manager.*;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
 import com.oolonghoo.wooeco.util.DebugManager;
-import com.oolonghoo.wooeco.util.ThreadUtils;
 import com.oolonghoo.wooeco.util.UUIDHandler;
 import com.oolonghoo.wooeco.vault.VaultHook;
 import org.bukkit.plugin.java.JavaPlugin;
