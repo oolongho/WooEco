@@ -11,11 +11,11 @@ import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.hook.PlaceholderAPIHook;
 import com.oolonghoo.wooeco.listener.PlayerJoinListener;
 import com.oolonghoo.wooeco.manager.*;
-import com.oolonghoo.wooeco.manager.NonPlayerAccountManager;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
+import com.oolonghoo.wooeco.util.DebugManager;
+import com.oolonghoo.wooeco.util.ThreadUtils;
 import com.oolonghoo.wooeco.util.UUIDHandler;
 import com.oolonghoo.wooeco.vault.VaultHook;
-import com.oolonghoo.wooeco.util.DebugManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -55,10 +55,11 @@ public class WooEco extends JavaPlugin {
         
         configLoader = new ConfigLoader(this, "config.yml");
         configLoader.initialize();
+        getLogger().info("[WooEco] 配置加载完成");
         
         ConfigValidator configValidator = new ConfigValidator(this);
         if (!configValidator.validate(getConfig())) {
-            getLogger().warning("配置文件存在错误，部分功能可能无法正常工作");
+            getLogger().warning("[WooEco] 配置文件存在错误，部分功能可能无法正常工作");
         }
         
         databaseConfig = new DatabaseConfig(this);
@@ -76,6 +77,7 @@ public class WooEco extends JavaPlugin {
         
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize();
+        getLogger().info("[WooEco] 数据库连接成功 (" + databaseConfig.getType() + ")");
         
         debugManager = new DebugManager(this);
         cooldownManager = new CooldownManager(this);
@@ -94,17 +96,18 @@ public class WooEco extends JavaPlugin {
         if (databaseConfig.isSyncEnabled()) {
             redisSyncManager = new RedisSyncManager(this);
             redisSyncManager.initialize();
+            getLogger().info("[WooEco] Redis 同步已启用");
         }
         
         if (getServer().getPluginManager().getPlugin("Vault") != null) {
             vaultHook = new VaultHook(this);
             vaultHook.hook();
-            getLogger().info("Vault集成已启用");
+            getLogger().info("[WooEco] Vault 集成已启用");
         }
         
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PlaceholderAPIHook(this).register();
-            getLogger().info("PlaceholderAPI集成已启用");
+            getLogger().info("[WooEco] PlaceholderAPI 集成已启用");
         }
         
         WooEcoAPI.initialize(this);
@@ -113,8 +116,7 @@ public class WooEco extends JavaPlugin {
         registerListeners();
         startTasks();
 
-        getLogger().info("WooEco v" + getPluginMeta().getVersion() + " 已启用!");
-        getLogger().info("数据库类型: " + databaseConfig.getType());
+        getLogger().info("[WooEco] WooEco v" + getPluginMeta().getVersion() + " 已启用!");
     }
     
     @Override
@@ -141,7 +143,7 @@ public class WooEco extends JavaPlugin {
             vaultHook.unhook();
         }
         
-        getLogger().info("WooEco 已禁用!");
+        getLogger().info("[WooEco] 插件已禁用");
     }
     
     private void registerCommands() {
@@ -195,7 +197,7 @@ public class WooEco extends JavaPlugin {
                     databaseManager.getLogDAO().cleanupOldLogs(retentionDays);
                     databaseManager.getTransactionDAO().cleanupOldTransactions(retentionDays);
                 } catch (Exception e) {
-                    getLogger().warning("清理过期日志失败: " + e.getMessage());
+                    getLogger().warning("[WooEco] 清理过期日志失败: " + e.getMessage());
                 }
             }
         }, cleanupInterval, cleanupInterval);

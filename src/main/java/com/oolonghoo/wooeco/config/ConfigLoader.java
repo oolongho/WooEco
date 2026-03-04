@@ -70,7 +70,7 @@ public class ConfigLoader {
         loadValues();
         
         if (isCustomFile) {
-            plugin.getLogger().info("已加载自定义配置文件: " + fileName);
+            plugin.getLogger().info("[WooEco] 已加载自定义配置文件: " + fileName);
         }
     }
     
