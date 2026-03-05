@@ -311,6 +311,27 @@ public class PlayerDataManager {
         }
     }
     
+    public void resetAllDailyIncome() {
+        long todayStart = getTodayStart();
+        
+        for (PlayerAccount account : onlineCache.values()) {
+            account.setDailyIncome(0);
+            account.setLastIncomeReset(todayStart);
+        }
+        
+        getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            try {
+                playerDAO.resetAllDailyIncome();
+            } catch (SQLException e) {
+                plugin.getLogger().severe("重置所有玩家每日收入失败: " + e.getMessage());
+            }
+        });
+    }
+    
+    private org.bukkit.Server getServer() {
+        return plugin.getServer();
+    }
+    
     public void checkAndResetDailyIncome(PlayerAccount account) {
         checkAndResetDailyIncome(account, getTodayStart());
     }

@@ -17,15 +17,22 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CooldownManager {
     
-    private final boolean enabled;
-    private final Map<String, Integer> cooldowns;
-    private final String cooldownMessage;
+    private final WooEco plugin;
+    private boolean enabled;
+    private Map<String, Integer> cooldowns;
+    private String cooldownMessage;
     private final Map<UUID, Map<String, Long>> playerCooldowns;
     
     public CooldownManager(WooEco plugin) {
-        this.enabled = plugin.getConfig().getBoolean("command-cooldown.enabled", true);
+        this.plugin = plugin;
         this.cooldowns = new HashMap<>();
         this.playerCooldowns = new ConcurrentHashMap<>();
+        loadConfig();
+    }
+    
+    private void loadConfig() {
+        this.enabled = plugin.getConfig().getBoolean("command-cooldown.enabled", true);
+        this.cooldowns.clear();
         
         ConfigurationSection section = plugin.getConfig().getConfigurationSection("command-cooldown.cooldowns");
         if (section != null) {
@@ -35,6 +42,10 @@ public class CooldownManager {
         }
         
         this.cooldownMessage = plugin.getConfig().getString("command-cooldown.message", "&c请等待 %time% 秒后再次使用此命令");
+    }
+    
+    public void reload() {
+        loadConfig();
     }
     
     public boolean isOnCooldown(Player player, String command) {

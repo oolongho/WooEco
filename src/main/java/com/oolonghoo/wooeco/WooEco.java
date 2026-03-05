@@ -188,6 +188,8 @@ public class WooEco extends JavaPlugin {
             }
         }, 20L * 60, 20L * 60);
         
+        scheduleMidnightReset();
+        
         long cleanupInterval = 20L * 60 * 60 * 24;
         getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
             int retentionDays = getConfig().getInt("logging.retention-days", 30);
@@ -200,6 +202,19 @@ public class WooEco extends JavaPlugin {
                 }
             }
         }, cleanupInterval, cleanupInterval);
+    }
+    
+    private void scheduleMidnightReset() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        java.time.LocalDateTime nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay();
+        long ticksUntilMidnight = java.time.Duration.between(now, nextMidnight).getSeconds() * 20L;
+        
+        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+            if (playerDataManager != null) {
+                playerDataManager.resetAllDailyIncome();
+                getLogger().info("[WooEco] 已重置所有在线玩家的每日收入统计");
+            }
+        }, ticksUntilMidnight, 20L * 60 * 60 * 24);
     }
     
     public void reload() {
@@ -218,6 +233,15 @@ public class WooEco extends JavaPlugin {
         }
         if (commandAliasManager != null) {
             commandAliasManager.reloadAliases();
+        }
+        if (cooldownManager != null) {
+            cooldownManager.reload();
+        }
+        if (leaderboardManager != null) {
+            leaderboardManager.reloadBlacklist();
+        }
+        if (nonPlayerAccountManager != null) {
+            nonPlayerAccountManager.reload();
         }
     }
     

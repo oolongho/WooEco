@@ -8,6 +8,7 @@ import com.oolonghoo.wooeco.util.ThreadUtils;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,18 +25,25 @@ public class NonPlayerAccountManager {
     private final WooEco plugin;
     private final NonPlayerAccountDAO accountDAO;
     private final ConcurrentMap<String, NonPlayerAccount> cache;
-    private final List<String> whitelistFields;
-    private final boolean whitelistEnabled;
-    private final boolean enabled;
+    private List<String> whitelistFields;
+    private boolean whitelistEnabled;
+    private boolean enabled;
     
     public NonPlayerAccountManager(WooEco plugin) {
         this.plugin = plugin;
         this.accountDAO = plugin.getDatabaseManager().getNonPlayerAccountDAO();
         this.cache = new ConcurrentHashMap<>();
-        
+        loadConfig();
+    }
+    
+    private void loadConfig() {
         this.enabled = plugin.getConfig().getBoolean("non-player-account.enable", false);
         this.whitelistEnabled = plugin.getConfig().getBoolean("non-player-account.whitelist.enable", false);
-        this.whitelistFields = plugin.getConfig().getStringList("non-player-account.whitelist.fields-list");
+        this.whitelistFields = new ArrayList<>(plugin.getConfig().getStringList("non-player-account.whitelist.fields-list"));
+    }
+    
+    public void reload() {
+        loadConfig();
     }
     
     public boolean isEnabled() {

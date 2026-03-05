@@ -32,5 +32,6 @@ public class PlayerJoinListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerQuit(PlayerQuitEvent event) {
         plugin.getPlayerDataManager().unloadPlayer(event.getPlayer().getUniqueId());
+        plugin.getCooldownManager().clearCooldown(event.getPlayer());
     }
 }
