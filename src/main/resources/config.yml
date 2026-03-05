@@ -108,7 +108,8 @@ transaction:
     enabled: true
     # 税率 (百分比, 0-100)
     rate: 5
-    # 税收接收者 (null=销毁税收, uuid=指定玩家UUID)
+    # 税收接收者 (null或留空=销毁税收, 支持UUID或玩家名)
+    # 示例: "Notch" 或 "550e8400-e29b-41d4-a716-446655440000"
     receiver: null
 
 # 命令冷却设置

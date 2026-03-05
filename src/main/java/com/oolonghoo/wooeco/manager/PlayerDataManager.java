@@ -88,6 +88,14 @@ public class PlayerDataManager {
         return account;
     }
     
+    public PlayerAccount getOrCreateAccount(UUID uuid, String playerName) {
+        PlayerAccount account = getAccount(uuid);
+        if (account == null) {
+            account = createNewAccount(uuid, playerName);
+        }
+        return account;
+    }
+    
     private PlayerAccount getAccountDirectFromDB(UUID uuid, long startTime) {
         PlayerAccount account = AsyncUtils.supplyAsyncWithTimeout(() -> {
             try {

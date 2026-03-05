@@ -104,7 +104,11 @@ public class TransactionManager {
         if (tax.compareTo(BigDecimal.ZERO) > 0 && !taxManager.isTaxDestroyed()) {
             UUID taxReceiverUuid = taxManager.getTaxReceiverUUID();
             if (taxReceiverUuid != null) {
-                PlayerAccount taxReceiverAccount = playerDataManager.getAccount(taxReceiverUuid);
+                String taxReceiverName = taxManager.getTaxReceiverName();
+                if (taxReceiverName == null) {
+                    taxReceiverName = "TaxReceiver";
+                }
+                PlayerAccount taxReceiverAccount = playerDataManager.getOrCreateAccount(taxReceiverUuid, taxReceiverName);
                 if (taxReceiverAccount != null) {
                     economyManager.deposit(taxReceiverUuid, tax, BalanceChangeReason.TAX, null, "TAX_SYSTEM");
                 }

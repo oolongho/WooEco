@@ -66,10 +66,37 @@ public class TaxManager {
         if (receiver == null || receiver.isEmpty()) {
             return null;
         }
+        
         try {
             return UUID.fromString(receiver);
         } catch (IllegalArgumentException e) {
+            Player player = plugin.getServer().getPlayer(receiver);
+            if (player != null) {
+                return player.getUniqueId();
+            }
+            
+            org.bukkit.OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(receiver);
+            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                return offlinePlayer.getUniqueId();
+            }
+            
+            plugin.getLogger().warning("[WooEco] 税收接收者 '" + receiver + "' 未找到，请检查配置");
             return null;
+        }
+    }
+    
+    public String getTaxReceiverName() {
+        String receiver = getTaxReceiver();
+        if (receiver == null || receiver.isEmpty()) {
+            return null;
+        }
+        
+        try {
+            UUID uuid = UUID.fromString(receiver);
+            org.bukkit.OfflinePlayer player = plugin.getServer().getOfflinePlayer(uuid);
+            return player.getName();
+        } catch (IllegalArgumentException e) {
+            return receiver;
         }
     }
 }
