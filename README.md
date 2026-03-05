@@ -50,11 +50,34 @@
 | `/eco income [玩家]` | 查看日收入 | `wooeco.income` |
 | `/eco history [玩家] [页码]` | 查看交易历史 | `wooeco.history` |
 | `/eco top all/income [页码]` | 查看排行榜 | `wooeco.top` |
-| `/eco give/take/set <玩家> <金额>` | 管理员操作 | `wooeco.admin.*` |
-| `/eco giveall/takeall/setall <all/online> <金额>` | 批量操作 | `wooeco.admin.*` |
+| `/eco give <玩家> <金额>` | 给予玩家金币 | `wooeco.admin.give` |
+| `/eco take <玩家> <金额>` | 扣除玩家金币 | `wooeco.admin.take` |
+| `/eco set <玩家> <金额>` | 设置玩家余额 | `wooeco.admin.set` |
+| `/eco giveall <all/online> <金额>` | 批量给予金币 | `wooeco.admin.give` |
+| `/eco takeall <all/online> <金额>` | 批量扣除金币 | `wooeco.admin.take` |
+| `/eco setall <all/online> <金额>` | 批量设置余额 | `wooeco.admin.set` |
 | `/eco reload` | 重载配置 | `wooeco.admin.reload` |
 | `/pay <玩家> <金额>` | 快捷转账 | `wooeco.pay` |
 | `/income [玩家]` | 快捷查看收入 | `wooeco.income` |
+
+## 权限
+
+| 权限 | 描述 |
+|------|------|
+| `wooeco.balance` | 查看自己的余额 |
+| `wooeco.balance.other` | 查看其他玩家的余额 |
+| `wooeco.pay` | 向玩家转账 |
+| `wooeco.income` | 查看日收入 |
+| `wooeco.income.other` | 查看其他玩家的日收入 |
+| `wooeco.history` | 查看交易历史 |
+| `wooeco.history.other` | 查看其他玩家的交易历史 |
+| `wooeco.top` | 查看排行榜 |
+| `wooeco.admin.give` | 给予玩家金币 |
+| `wooeco.admin.take` | 扣除玩家金币 |
+| `wooeco.admin.set` | 设置玩家余额 |
+| `wooeco.admin.reload` | 重载配置 |
+| `wooeco.bypass.tax` | 豁免交易税 |
+| `wooeco.admin.debug` | 接收调试信息 |
 
 ## PlaceholderAPI 变量
 
@@ -62,30 +85,78 @@
 |------|------|
 | `%wooeco_balance%` | 玩家余额 |
 | `%wooeco_balance_formatted%` | 格式化余额（带货币符号） |
+| `%wooeco_balance_raw%` | 原始余额数值 |
 | `%wooeco_daily_income%` | 今日总收入 |
 | `%wooeco_top_rank%` | 玩家排行榜排名 |
 | `%wooeco_top_player_<n>%` | 排行榜第N名玩家名 |
 | `%wooeco_top_balance_<n>%` | 排行榜第N名余额 |
+| `%wooeco_income_top_player_<n>%` | 收入排行榜第N名玩家名 |
+| `%wooeco_income_top_income_<n>%` | 收入排行榜第N名收入 |
 | `%wooeco_sum_balance%` | 全服总余额 |
 | `%wooeco_player_count%` | 账户总数 |
 
 ## API 使用示例
 
 ```java
-WooEcoAPI api = WooEcoAPI.getInstance();
+import com.oolonghoo.wooeco.api.WooEcoAPI;
+import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
+import com.oolonghoo.wooeco.manager.EconomyManager.EconomyResult;
+import java.util.UUID;
 
-// 获取余额
-double balance = api.getBalance(player.getUniqueId());
-
-// 存款（带原因）
-api.deposit(uuid, 100.0, BalanceChangeReason.ADMIN, "console");
-
-// 监听事件
-@EventHandler
-public void onBalanceChange(BalanceChangeEvent event) {
-    Player player = event.getPlayer();
-    BigDecimal newBalance = event.getNewBalance();
-    // 你的逻辑
+public class MyPlugin extends JavaPlugin {
+    
+    public void exampleUsage() {
+        UUID playerUuid = player.getUniqueId();
+        
+        // 检查插件是否已加载
+        if (!WooEcoAPI.isLoaded()) {
+            return;
+        }
+        
+        // 获取余额
+        double balance = WooEcoAPI.getBalance(playerUuid);
+        
+        // 检查余额是否足够
+        boolean hasEnough = WooEcoAPI.has(playerUuid, 100.0);
+        
+        // 存款
+        EconomyResult depositResult = WooEcoAPI.deposit(playerUuid, 100.0);
+        if (depositResult.isSuccess()) {
+            player.sendMessage("存款成功！新余额: " + depositResult.getBalance());
+        }
+        
+        // 扣款
+        EconomyResult withdrawResult = WooEcoAPI.withdraw(playerUuid, 50.0);
+        if (withdrawResult.isSuccess()) {
+            player.sendMessage("扣款成功！");
+        }
+        
+        // 设置余额
+        EconomyResult setResult = WooEcoAPI.set(playerUuid, 1000.0);
+        
+        // 转账
+        TransactionManager.TransactionResult txResult = WooEcoAPI.transfer(
+            player1.getUniqueId(), 
+            player2.getUniqueId(), 
+            50.0
+        );
+        
+        // 格式化金额
+        String formatted = WooEcoAPI.format(12345.67);
+        
+        // 获取排行榜
+        List<PlayerAccount> topPlayers = WooEcoAPI.getTopBalances(10);
+    }
+    
+    // 监听余额变化事件
+    @EventHandler
+    public void onBalanceChange(BalanceChangeEvent event) {
+        UUID uuid = event.getPlayerUuid();
+        double oldBalance = event.getOldBalance();
+        double newBalance = event.getNewBalance();
+        double change = event.getChangeAmount();
+        // 你的逻辑
+    }
 }
 ```
 
@@ -93,4 +164,4 @@ public void onBalanceChange(BalanceChangeEvent event) {
 
 ❤️ 主包是开发新手，如果有做得不好的地方，欢迎指正。希望能和大家一起交流！
 
-⭐ 觉得有用请给个 Star 爱你哟 
+⭐ 觉得有用请给个 Star 爱你哟
