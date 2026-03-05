@@ -238,29 +238,41 @@ public class EconomyManager {
             return new BatchResult(0, 0, amount);
         }
         
+        java.util.Map<UUID, java.math.BigDecimal> oldBalances = new java.util.HashMap<>();
+        java.util.Map<UUID, String> nameMap = new java.util.HashMap<>();
+        for (PlayerAccount account : accounts) {
+            oldBalances.put(account.getUuid(), account.getBalance());
+            nameMap.put(account.getUuid(), account.getPlayerName());
+        }
+        
         try {
             int updated = plugin.getPlayerDataManager().getPlayerDAO()
                 .depositAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
             
             playerDataManager.invalidateAllCache();
             
-            for (PlayerAccount account : accounts) {
+            for (java.util.Map.Entry<UUID, java.math.BigDecimal> entry : oldBalances.entrySet()) {
+                UUID uuid = entry.getKey();
+                java.math.BigDecimal oldBalance = entry.getValue();
+                java.math.BigDecimal newBalance = oldBalance.add(amount);
+                String playerName = nameMap.get(uuid);
+                
                 BalanceChangeEvent event = new BalanceChangeEvent(
-                    account.getUuid(), 
-                    account.getBalanceDouble(),
-                    account.getBalanceDouble() + amount.doubleValue(),
+                    uuid, 
+                    oldBalance.doubleValue(),
+                    newBalance.doubleValue(),
                     amount.doubleValue(), 
                     BalanceChangeReason.ADMIN
                 );
                 Bukkit.getPluginManager().callEvent(event);
                 
                 logManager.logBalanceChange(
-                    account.getUuid(), 
-                    account.getPlayerName(), 
+                    uuid, 
+                    playerName, 
                     "DEPOSIT_ALL", 
                     amount.doubleValue(), 
-                    account.getBalanceDouble(),
-                    account.getBalanceDouble() + amount.doubleValue(),
+                    oldBalance.doubleValue(),
+                    newBalance.doubleValue(),
                     operator, 
                     operatorName, 
                     null
@@ -268,9 +280,9 @@ public class EconomyManager {
                 
                 if (plugin.getRedisSyncManager() != null) {
                     plugin.getRedisSyncManager().publishBalanceUpdate(
-                        account.getUuid(), 
-                        account.getPlayerName(), 
-                        account.getBalanceDouble() + amount.doubleValue()
+                        uuid, 
+                        playerName, 
+                        newBalance.doubleValue()
                     );
                 }
             }
@@ -305,30 +317,43 @@ public class EconomyManager {
             return new BatchResult(0, 0, amount);
         }
         
+        java.util.Map<UUID, java.math.BigDecimal> oldBalances = new java.util.HashMap<>();
+        java.util.Map<UUID, String> nameMap = new java.util.HashMap<>();
+        for (PlayerAccount account : accounts) {
+            oldBalances.put(account.getUuid(), account.getBalance());
+            nameMap.put(account.getUuid(), account.getPlayerName());
+        }
+        
         try {
             int updated = plugin.getPlayerDataManager().getPlayerDAO()
                 .withdrawAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
             
             playerDataManager.invalidateAllCache();
             
-            for (PlayerAccount account : accounts) {
-                if (account.getBalanceDouble() >= amount.doubleValue()) {
+            for (java.util.Map.Entry<UUID, java.math.BigDecimal> entry : oldBalances.entrySet()) {
+                UUID uuid = entry.getKey();
+                java.math.BigDecimal oldBalance = entry.getValue();
+                String playerName = nameMap.get(uuid);
+                
+                if (oldBalance.compareTo(amount) >= 0) {
+                    java.math.BigDecimal newBalance = oldBalance.subtract(amount);
+                    
                     BalanceChangeEvent event = new BalanceChangeEvent(
-                        account.getUuid(), 
-                        account.getBalanceDouble(),
-                        account.getBalanceDouble() - amount.doubleValue(),
+                        uuid, 
+                        oldBalance.doubleValue(),
+                        newBalance.doubleValue(),
                         -amount.doubleValue(), 
                         BalanceChangeReason.ADMIN
                     );
                     Bukkit.getPluginManager().callEvent(event);
                     
                     logManager.logBalanceChange(
-                        account.getUuid(), 
-                        account.getPlayerName(), 
+                        uuid, 
+                        playerName, 
                         "WITHDRAW_ALL", 
                         amount.doubleValue(), 
-                        account.getBalanceDouble(),
-                        account.getBalanceDouble() - amount.doubleValue(),
+                        oldBalance.doubleValue(),
+                        newBalance.doubleValue(),
                         operator, 
                         operatorName, 
                         null
@@ -336,9 +361,9 @@ public class EconomyManager {
                     
                     if (plugin.getRedisSyncManager() != null) {
                         plugin.getRedisSyncManager().publishBalanceUpdate(
-                            account.getUuid(), 
-                            account.getPlayerName(), 
-                            account.getBalanceDouble() - amount.doubleValue()
+                            uuid, 
+                            playerName, 
+                            newBalance.doubleValue()
                         );
                     }
                 }
@@ -374,28 +399,39 @@ public class EconomyManager {
             return new BatchResult(0, 0, amount);
         }
         
+        java.util.Map<UUID, java.math.BigDecimal> oldBalances = new java.util.HashMap<>();
+        java.util.Map<UUID, String> nameMap = new java.util.HashMap<>();
+        for (PlayerAccount account : accounts) {
+            oldBalances.put(account.getUuid(), account.getBalance());
+            nameMap.put(account.getUuid(), account.getPlayerName());
+        }
+        
         try {
             int updated = plugin.getPlayerDataManager().getPlayerDAO()
                 .setAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
             
             playerDataManager.invalidateAllCache();
             
-            for (PlayerAccount account : accounts) {
+            for (java.util.Map.Entry<UUID, java.math.BigDecimal> entry : oldBalances.entrySet()) {
+                UUID uuid = entry.getKey();
+                java.math.BigDecimal oldBalance = entry.getValue();
+                String playerName = nameMap.get(uuid);
+                
                 BalanceChangeEvent event = new BalanceChangeEvent(
-                    account.getUuid(), 
-                    account.getBalanceDouble(),
+                    uuid, 
+                    oldBalance.doubleValue(),
                     amount.doubleValue(),
-                    amount.subtract(account.getBalance()).doubleValue(), 
+                    amount.subtract(oldBalance).doubleValue(), 
                     BalanceChangeReason.ADMIN
                 );
                 Bukkit.getPluginManager().callEvent(event);
                 
                 logManager.logBalanceChange(
-                    account.getUuid(), 
-                    account.getPlayerName(), 
+                    uuid, 
+                    playerName, 
                     "SET_ALL", 
-                    amount.subtract(account.getBalance()).abs().doubleValue(), 
-                    account.getBalanceDouble(),
+                    amount.subtract(oldBalance).abs().doubleValue(), 
+                    oldBalance.doubleValue(),
                     amount.doubleValue(),
                     operator, 
                     operatorName, 
@@ -404,8 +440,8 @@ public class EconomyManager {
                 
                 if (plugin.getRedisSyncManager() != null) {
                     plugin.getRedisSyncManager().publishBalanceUpdate(
-                        account.getUuid(), 
-                        account.getPlayerName(), 
+                        uuid, 
+                        playerName, 
                         amount.doubleValue()
                     );
                 }
