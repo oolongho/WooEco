@@ -1,16 +1,23 @@
 # WooEco
 
-🍵一款高性能、多功能的 Minecraft 经济插件
+[!\[Version\](https://img.shields.io/badge/version-1.1.6-green.svg null)](https://github.com/oolonghoo/WooEco)
+[!\[Minecraft\](https://img.shields.io/badge/minecraft-1.21+-blue.svg null)](https://www.minecraft.net/)
+[!\[Java\](https://img.shields.io/badge/java-21+-orange.svg null)](https://adoptium.net/)
+[!\[License\](https://img.shields.io/badge/license-MIT-lightgrey.svg null)](LICENSE)
+
+🍵 一款高性能、多功能的 Minecraft 经济插件
 
 ## 特色
 
 ### 🛡️ 线程安全设计
+
 - **细粒度锁机制**：使用 `volatile`、`synchronized` 和 `Atomic*` 类型实现最大程度的线程安全
 - **脏数据追踪**：仅保存变更数据到数据库，大幅减少 I/O 操作
 - **智能异步调度**：自动检测主线程并智能调度任务
 - **超时保护**：异步操作可配置的超时时间，防止死锁
 
 ### ⚡ 性能优化
+
 - **O(1) 玩家查找**：基于名称索引的缓存，实现即时玩家查找
 - **HikariCP 连接池**：优化的数据库连接，针对 MySQL 进行专项调优
 - **O(1) 排名查询**：排行榜排名缓存，大幅提升变量性能
@@ -18,16 +25,18 @@
 - **懒加载统计刷新**：全局统计数据按需缓存和刷新
 
 ### 🔌 丰富的集成支持
+
 - **PlaceholderAPI**：13+ 变量支持余额、排名、排行榜显示
 - **Vault API**：完全兼容依赖经济 API 的其他插件
 - **Redis 同步**：跨服数据同步
 - **Towny/Factions**：支持城镇/国家银行等非玩家账户
 
 ### 🎮 玩家体验
+
 - **日收入追踪**：通过 `/eco income` 查看今日收入
 - **双排行榜系统**：余额和收入双排行榜，支持黑名单过滤
 - **离线转账提示**：上线时提示离线期间收到的转账
-- **交易税系统**：可配置税率，支持指定税收接收账户
+- **交易税系统**：可配置税率，支持指定税收接收账户（支持 UUID 或玩家名）
 - **交易历史查询**：通过 `/eco history` 查看详细交易记录
 - **快捷命令**：`/pay` `/income` 等快捷命令
 
@@ -39,61 +48,69 @@
 - PlaceholderAPI（可选）
 - Redis（可选，用于跨服同步）
 
+## 安装
+
+1. 下载最新版本的 WooEco.jar
+2. 将文件放入服务器的 `plugins` 目录
+3. 启动服务器，插件会自动生成配置文件
+4. 根据需要修改 `config.yml` 配置文件
+5. 使用 `/eco reload` 重载配置
+
 ## 命令
 
-| 命令 | 描述 | 权限 |
-|------|------|------|
-| `/eco` 或 `/money` | 查看自己的余额 | `wooeco.balance` |
-| `/eco look` | 查看自己的余额 | `wooeco.balance` |
-| `/eco look <玩家>` | 查看其他玩家的余额 | `wooeco.balance.other` |
-| `/eco pay <玩家> <金额>` | 向玩家转账 | `wooeco.pay` |
-| `/eco income [玩家]` | 查看日收入 | `wooeco.income` |
-| `/eco history [玩家] [页码]` | 查看交易历史 | `wooeco.history` |
-| `/eco top all/income [页码]` | 查看排行榜 | `wooeco.top` |
-| `/eco give <玩家> <金额>` | 给予玩家金币 | `wooeco.admin.give` |
-| `/eco take <玩家> <金额>` | 扣除玩家金币 | `wooeco.admin.take` |
-| `/eco set <玩家> <金额>` | 设置玩家余额 | `wooeco.admin.set` |
-| `/eco giveall <all/online> <金额>` | 批量给予金币 | `wooeco.admin.give` |
-| `/eco takeall <all/online> <金额>` | 批量扣除金币 | `wooeco.admin.take` |
-| `/eco setall <all/online> <金额>` | 批量设置余额 | `wooeco.admin.set` |
-| `/eco reload` | 重载配置 | `wooeco.admin.reload` |
-| `/pay <玩家> <金额>` | 快捷转账 | `wooeco.pay` |
-| `/income [玩家]` | 快捷查看收入 | `wooeco.income` |
+| 命令                               | 描述        | 权限                     |
+| -------------------------------- | --------- | ---------------------- |
+| `/eco` 或 `/money`                | 查看自己的余额   | `wooeco.balance`       |
+| `/eco look`                      | 查看自己的余额   | `wooeco.balance`       |
+| `/eco look <玩家>`                 | 查看其他玩家的余额 | `wooeco.balance.other` |
+| `/eco pay <玩家> <金额>`             | 向玩家转账     | `wooeco.pay`           |
+| `/eco income [玩家]`               | 查看日收入     | `wooeco.income`        |
+| `/eco history [玩家] [页码]`         | 查看交易历史    | `wooeco.history`       |
+| `/eco top all/income [页码]`       | 查看排行榜     | `wooeco.top`           |
+| `/eco give <玩家> <金额>`            | 给予玩家金币    | `wooeco.admin.give`    |
+| `/eco take <玩家> <金额>`            | 扣除玩家金币    | `wooeco.admin.take`    |
+| `/eco set <玩家> <金额>`             | 设置玩家余额    | `wooeco.admin.set`     |
+| `/eco giveall <all/online> <金额>` | 批量给予金币    | `wooeco.admin.give`    |
+| `/eco takeall <all/online> <金额>` | 批量扣除金币    | `wooeco.admin.take`    |
+| `/eco setall <all/online> <金额>`  | 批量设置余额    | `wooeco.admin.set`     |
+| `/eco reload`                    | 重载配置      | `wooeco.admin.reload`  |
+| `/pay <玩家> <金额>`                 | 快捷转账      | `wooeco.pay`           |
+| `/income [玩家]`                   | 快捷查看收入    | `wooeco.income`        |
 
 ## 权限
 
-| 权限 | 描述 |
-|------|------|
-| `wooeco.balance` | 查看自己的余额 |
-| `wooeco.balance.other` | 查看其他玩家的余额 |
-| `wooeco.pay` | 向玩家转账 |
-| `wooeco.income` | 查看日收入 |
-| `wooeco.income.other` | 查看其他玩家的日收入 |
-| `wooeco.history` | 查看交易历史 |
+| 权限                     | 描述          |
+| ---------------------- | ----------- |
+| `wooeco.balance`       | 查看自己的余额     |
+| `wooeco.balance.other` | 查看其他玩家的余额   |
+| `wooeco.pay`           | 向玩家转账       |
+| `wooeco.income`        | 查看日收入       |
+| `wooeco.income.other`  | 查看其他玩家的日收入  |
+| `wooeco.history`       | 查看交易历史      |
 | `wooeco.history.other` | 查看其他玩家的交易历史 |
-| `wooeco.top` | 查看排行榜 |
-| `wooeco.admin.give` | 给予玩家金币 |
-| `wooeco.admin.take` | 扣除玩家金币 |
-| `wooeco.admin.set` | 设置玩家余额 |
-| `wooeco.admin.reload` | 重载配置 |
-| `wooeco.bypass.tax` | 豁免交易税 |
-| `wooeco.admin.debug` | 接收调试信息 |
+| `wooeco.top`           | 查看排行榜       |
+| `wooeco.admin.give`    | 给予玩家金币      |
+| `wooeco.admin.take`    | 扣除玩家金币      |
+| `wooeco.admin.set`     | 设置玩家余额      |
+| `wooeco.admin.reload`  | 重载配置        |
+| `wooeco.bypass.tax`    | 豁免交易税       |
+| `wooeco.admin.debug`   | 接收调试信息      |
 
 ## PlaceholderAPI 变量
 
-| 变量 | 描述 |
-|------|------|
-| `%wooeco_balance%` | 玩家余额 |
-| `%wooeco_balance_formatted%` | 格式化余额（带货币符号） |
-| `%wooeco_balance_raw%` | 原始余额数值 |
-| `%wooeco_daily_income%` | 今日总收入 |
-| `%wooeco_top_rank%` | 玩家排行榜排名 |
-| `%wooeco_top_player_<n>%` | 排行榜第N名玩家名 |
-| `%wooeco_top_balance_<n>%` | 排行榜第N名余额 |
-| `%wooeco_income_top_player_<n>%` | 收入排行榜第N名玩家名 |
-| `%wooeco_income_top_income_<n>%` | 收入排行榜第N名收入 |
-| `%wooeco_sum_balance%` | 全服总余额 |
-| `%wooeco_player_count%` | 账户总数 |
+| 变量                               | 描述            |
+| -------------------------------- | ------------- |
+| `%wooeco_balance%`               | 玩家余额          |
+| `%wooeco_balance_formatted%`     | 格式化余额（带货币符号）  |
+| `%wooeco_balance_raw%`           | 原始余额数值        |
+| `%wooeco_daily_income%`          | 今日总收入         |
+| `%wooeco_top_rank%`              | 玩家排行榜排名       |
+| `%wooeco_top_player_<n>%`        | 排行榜第 N 名玩家名   |
+| `%wooeco_top_balance_<n>%`       | 排行榜第 N 名余额    |
+| `%wooeco_income_top_player_<n>%` | 收入排行榜第 N 名玩家名 |
+| `%wooeco_income_top_income_<n>%` | 收入排行榜第 N 名收入  |
+| `%wooeco_sum_balance%`           | 全服总余额         |
+| `%wooeco_player_count%`          | 账户总数          |
 
 ## API 使用示例
 
@@ -122,7 +139,7 @@ public class MyPlugin extends JavaPlugin {
         // 存款
         EconomyResult depositResult = WooEcoAPI.deposit(playerUuid, 100.0);
         if (depositResult.isSuccess()) {
-            player.sendMessage("存款成功！新余额: " + depositResult.getBalance());
+            player.sendMessage("存款成功！新余额：" + depositResult.getBalance());
         }
         
         // 扣款
@@ -160,7 +177,78 @@ public class MyPlugin extends JavaPlugin {
 }
 ```
 
----
+## 配置文件
+
+<details>
+<summary>点击查看 config.yml</summary>
+
+```yaml
+# WooEco 配置文件
+
+settings:
+  debug: false
+  language: zh-CN
+  auto-save-interval: 300
+  uuid-mode: Default
+  username-ignore-case: false
+
+performance:
+  async-timeout: 3
+  force-async: false
+  disable-cache: false
+  max-concurrent-operations: 10
+  max-queue-size: 100
+
+currency:
+  singular-name: "金币"
+  plural-name: "金币"
+  symbol: "&e￥&r"
+  starting-balance: 0
+  max-balance: 10000000000000000
+  integer-balance: false
+  rounding-mode: 2
+  format:
+    thousands-separator: ","
+    decimal-places: 2
+    display-format: "%balance% %currencyname%"
+
+transaction:
+  min-amount: 1
+  max-amount: 1000000
+  offline-transfer-tips: true
+  tax:
+    enabled: true
+    rate: 5
+    receiver: null  # null=销毁税收，支持 UUID 或玩家名
+
+database:
+  type: SQLite
+  file: "data.db"
+  mysql:
+    host: localhost
+    port: 3306
+    database: wooeco
+    user: root
+    password: ""
+    pool-size: 10
+    table-prefix: "wooeco_"
+  auto-save: 60
+
+sync:
+  enable: false
+  redis:
+    host: localhost
+    port: 6379
+    password: ""
+    channel: "wooeco:sync"
+  server-id: "server-1"
+```
+
+</details>
+
+<br />
+
+***
 
 ❤️ 主包是开发新手，如果有做得不好的地方，欢迎指正。希望能和大家一起交流！
 
