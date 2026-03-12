@@ -19,7 +19,7 @@ public class CooldownManager {
     
     private final WooEco plugin;
     private boolean enabled;
-    private Map<String, Integer> cooldowns;
+    private final Map<String, Integer> cooldowns;
     private String cooldownMessage;
     private final Map<UUID, Map<String, Long>> playerCooldowns;
     

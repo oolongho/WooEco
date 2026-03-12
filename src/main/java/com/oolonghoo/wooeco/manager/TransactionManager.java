@@ -1,15 +1,17 @@
 package com.oolonghoo.wooeco.manager;
 
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
+
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.api.events.TransactionEvent;
 import com.oolonghoo.wooeco.database.dao.TransactionDAO;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.model.Transaction;
-import org.bukkit.Bukkit;
-
-import java.math.BigDecimal;
-import java.util.UUID;
 
 /**
  * 交易管理器
@@ -137,8 +139,8 @@ public class TransactionManager {
             plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
                 try {
                     transactionDAO.saveTransaction(transaction);
-                } catch (Exception e) {
-                    plugin.getLogger().severe("保存交易记录失败: " + e.getMessage());
+                } catch (SQLException e) {
+                    plugin.getLogger().severe(String.format("保存交易记录失败：%s", e.getMessage()));
                 }
             });
         }

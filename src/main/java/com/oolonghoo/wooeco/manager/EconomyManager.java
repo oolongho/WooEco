@@ -1,14 +1,16 @@
 package com.oolonghoo.wooeco.manager;
 
+import java.math.BigDecimal;
+import java.sql.SQLException;
+import java.util.UUID;
+
+import org.bukkit.Bukkit;
+
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.util.MoneyFormat;
-import org.bukkit.Bukkit;
-
-import java.math.BigDecimal;
-import java.util.UUID;
 
 /**
  * 经济管理器
@@ -288,8 +290,8 @@ public class EconomyManager {
             }
             
             return new BatchResult(updated, totalAccounts - updated, amount);
-        } catch (Exception e) {
-            plugin.getLogger().severe("批量存款失败: " + e.getMessage());
+        } catch (SQLException e) {
+            plugin.getLogger().severe(String.format("批量存款失败：%s", e.getMessage()));
             return new BatchResult(0, totalAccounts, amount);
         }
     }
@@ -370,8 +372,8 @@ public class EconomyManager {
             }
             
             return new BatchResult(updated, totalAccounts - updated, amount);
-        } catch (Exception e) {
-            plugin.getLogger().severe("批量扣款失败: " + e.getMessage());
+        } catch (SQLException e) {
+            plugin.getLogger().severe(String.format("批量扣款失败：%s", e.getMessage()));
             return new BatchResult(0, totalAccounts, amount);
         }
     }
@@ -448,8 +450,8 @@ public class EconomyManager {
             }
             
             return new BatchResult(updated, totalAccounts - updated, amount);
-        } catch (Exception e) {
-            plugin.getLogger().severe("批量设置余额失败: " + e.getMessage());
+        } catch (SQLException e) {
+            plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
             return new BatchResult(0, totalAccounts, amount);
         }
     }

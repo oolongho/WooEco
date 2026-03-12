@@ -1,7 +1,12 @@
 package com.oolonghoo.wooeco;
 
+import org.bukkit.plugin.java.JavaPlugin;
+
 import com.oolonghoo.wooeco.api.WooEcoAPI;
-import com.oolonghoo.wooeco.command.*;
+import com.oolonghoo.wooeco.command.CommandAliasManager;
+import com.oolonghoo.wooeco.command.IncomeCommand;
+import com.oolonghoo.wooeco.command.MainCommand;
+import com.oolonghoo.wooeco.command.PayCommand;
 import com.oolonghoo.wooeco.config.ConfigLoader;
 import com.oolonghoo.wooeco.config.ConfigValidator;
 import com.oolonghoo.wooeco.config.CurrencyConfig;
@@ -10,12 +15,22 @@ import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.hook.PlaceholderAPIHook;
 import com.oolonghoo.wooeco.listener.PlayerJoinListener;
-import com.oolonghoo.wooeco.manager.*;
+import com.oolonghoo.wooeco.manager.CooldownManager;
+import com.oolonghoo.wooeco.manager.EconomyManager;
+import com.oolonghoo.wooeco.manager.GlobalStatsManager;
+import com.oolonghoo.wooeco.manager.LeaderboardManager;
+import com.oolonghoo.wooeco.manager.LogManager;
+import com.oolonghoo.wooeco.manager.NonPlayerAccountManager;
+import com.oolonghoo.wooeco.manager.OfflineTransferManager;
+import com.oolonghoo.wooeco.manager.PlayerDataManager;
+import com.oolonghoo.wooeco.manager.TaxManager;
+import com.oolonghoo.wooeco.manager.TransactionManager;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
 import com.oolonghoo.wooeco.util.DebugManager;
 import com.oolonghoo.wooeco.util.UUIDHandler;
+
+import java.sql.SQLException;
 import com.oolonghoo.wooeco.vault.VaultHook;
-import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * WooEco - 经济插件主类
@@ -76,7 +91,7 @@ public class WooEco extends JavaPlugin {
         
         databaseManager = new DatabaseManager(this);
         databaseManager.initialize();
-        getLogger().info("[WooEco] 数据库连接成功 (" + databaseConfig.getType() + ")");
+        getLogger().info(String.format("[WooEco] 数据库连接成功 (%s)", databaseConfig.getType()));
         
         debugManager = new DebugManager(this);
         cooldownManager = new CooldownManager(this);
@@ -115,7 +130,7 @@ public class WooEco extends JavaPlugin {
         registerListeners();
         startTasks();
 
-        getLogger().info("[WooEco] WooEco v" + getPluginMeta().getVersion() + " 已启用!");
+        getLogger().info(String.format("[WooEco] WooEco v%s 已启用!", getPluginMeta().getVersion()));
     }
     
     @Override
@@ -197,8 +212,8 @@ public class WooEco extends JavaPlugin {
                 try {
                     databaseManager.getLogDAO().cleanupOldLogs(retentionDays);
                     databaseManager.getTransactionDAO().cleanupOldTransactions(retentionDays);
-                } catch (Exception e) {
-                    getLogger().warning("[WooEco] 清理过期日志失败: " + e.getMessage());
+                } catch (SQLException e) {
+                    getLogger().warning(String.format("[WooEco] 清理过期日志失败：%s", e.getMessage()));
                 }
             }
         }, cleanupInterval, cleanupInterval);

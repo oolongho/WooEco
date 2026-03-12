@@ -80,7 +80,7 @@ public class TaxManager {
                 return offlinePlayer.getUniqueId();
             }
             
-            plugin.getLogger().warning("[WooEco] 税收接收者 '" + receiver + "' 未找到，请检查配置");
+            plugin.getLogger().warning(String.format("[WooEco] 税收接收者 '%s' 未找到，请检查配置", receiver));
             return null;
         }
     }

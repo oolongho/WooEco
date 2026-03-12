@@ -1,11 +1,5 @@
 package com.oolonghoo.wooeco.manager;
 
-import com.oolonghoo.wooeco.WooEco;
-import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
-import com.oolonghoo.wooeco.model.NonPlayerAccount;
-import com.oolonghoo.wooeco.util.AsyncUtils;
-import com.oolonghoo.wooeco.util.ThreadUtils;
-
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -13,6 +7,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
+import com.oolonghoo.wooeco.model.NonPlayerAccount;
+import com.oolonghoo.wooeco.util.AsyncUtils;
+import com.oolonghoo.wooeco.util.ThreadUtils;
 
 /**
  * 非玩家账户管理器
@@ -86,7 +86,7 @@ public class NonPlayerAccountManager {
                 }
                 return acc;
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取非玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取非玩家账户失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -107,10 +107,10 @@ public class NonPlayerAccountManager {
         try {
             accountDAO.createAccount(account);
             cache.put(accountName, account);
-            plugin.getLogger().info("创建非玩家账户: " + accountName);
+            plugin.getLogger().info(String.format("创建非玩家账户：%s", accountName));
             return account;
         } catch (SQLException e) {
-            plugin.getLogger().severe("创建非玩家账户失败: " + e.getMessage());
+            plugin.getLogger().severe(String.format("创建非玩家账户失败：%s", e.getMessage()));
             return null;
         }
     }
@@ -212,7 +212,7 @@ public class NonPlayerAccountManager {
             cache.remove(accountName);
             return true;
         } catch (SQLException e) {
-            plugin.getLogger().severe("删除非玩家账户失败: " + e.getMessage());
+            plugin.getLogger().severe(String.format("删除非玩家账户失败：%s", e.getMessage()));
             return false;
         }
     }
@@ -226,7 +226,7 @@ public class NonPlayerAccountManager {
             try {
                 return accountDAO.getAllAccounts();
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取所有非玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取所有非玩家账户失败：%s", e.getMessage()));
                 return List.<NonPlayerAccount>of();
             }
         }, List.of());
@@ -254,7 +254,7 @@ public class NonPlayerAccountManager {
         try {
             accountDAO.saveOrUpdateAccount(account);
         } catch (SQLException e) {
-            plugin.getLogger().severe("保存非玩家账户失败: " + e.getMessage());
+            plugin.getLogger().severe(String.format("保存非玩家账户失败：%s", e.getMessage()));
         }
     }
     
