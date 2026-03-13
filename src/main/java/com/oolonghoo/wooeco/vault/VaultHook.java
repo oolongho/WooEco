@@ -13,7 +13,6 @@ import java.util.List;
 /**
  * Vault经济集成
  * 
- * @author oolongho
  */
 public class VaultHook implements Economy {
     

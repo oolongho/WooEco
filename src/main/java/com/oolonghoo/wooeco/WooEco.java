@@ -35,8 +35,6 @@ import com.oolonghoo.wooeco.vault.VaultHook;
 /**
  * WooEco - 经济插件主类
  * 
- * @author oolongho
- * @since 1.0.0
  */
 public class WooEco extends JavaPlugin {
     

@@ -5,7 +5,6 @@ import java.util.UUID;
 /**
  * 离线交易提示模型
  * 
- * @author oolongho
  */
 public class OfflineTransferTip {
     

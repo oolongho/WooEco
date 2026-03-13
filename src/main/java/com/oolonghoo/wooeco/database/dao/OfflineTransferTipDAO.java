@@ -12,7 +12,6 @@ import java.util.UUID;
  * 离线交易提示数据访问对象
  * 使用读写锁优化并发性能
  * 
- * @author oolongho
  */
 public class OfflineTransferTipDAO {
     

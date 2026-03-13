@@ -20,7 +20,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * 数据库管理器
  * 支持 SQLite 和 MySQL，使用 HikariCP 连接池
  * 
- * @author oolongho
  */
 public class DatabaseManager {
     

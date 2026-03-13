@@ -6,7 +6,6 @@ import org.bukkit.configuration.ConfigurationSection;
 /**
  * 数据库配置类
  * 
- * @author oolongho
  */
 public class DatabaseConfig {
     

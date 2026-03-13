@@ -12,7 +12,6 @@ import java.util.regex.Pattern;
 /**
  * 消息管理器
  * 
- * @author oolongho
  */
 public class MessageManager extends ConfigLoader {
     

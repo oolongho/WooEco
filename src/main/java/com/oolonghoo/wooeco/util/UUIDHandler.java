@@ -11,7 +11,6 @@ import java.util.UUID;
 /**
  * UUID模式处理器
  * 
- * @author oolongho
  */
 public class UUIDHandler {
     

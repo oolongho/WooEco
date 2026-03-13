@@ -13,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 命令冷却管理器
  * 防止命令刷屏
  * 
- * @author oolongho
  */
 public class CooldownManager {
     

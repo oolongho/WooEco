@@ -13,7 +13,6 @@ import java.util.logging.Level;
  * 数据库版本升级器
  * 管理数据库表结构的版本升级
  * 
- * @author oolongho
  */
 public class DatabaseUpgrader {
     

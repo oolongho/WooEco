@@ -18,7 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 排行榜管理器 (线程安全)
  * 支持黑名单过滤
  * 
- * @author oolongho
  */
 public class LeaderboardManager {
     

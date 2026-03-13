@@ -13,7 +13,6 @@ import java.util.Map;
 /**
  * 收入快捷命令
  * 
- * @author oolongho
  */
 public class IncomeCommand implements CommandExecutor {
     

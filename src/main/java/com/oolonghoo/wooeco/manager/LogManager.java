@@ -16,7 +16,6 @@ import java.util.UUID;
  * 日志管理器
  * 同时记录到数据库和日志文件
  * 
- * @author oolongho
  */
 public class LogManager {
     

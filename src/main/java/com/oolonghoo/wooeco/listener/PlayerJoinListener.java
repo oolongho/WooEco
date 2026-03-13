@@ -10,7 +10,6 @@ import org.bukkit.event.player.PlayerQuitEvent;
 /**
  * 玩家加入/退出监听器
  * 
- * @author oolongho
  */
 public class PlayerJoinListener implements Listener {
     

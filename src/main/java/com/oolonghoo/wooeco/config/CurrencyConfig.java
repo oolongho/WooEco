@@ -10,7 +10,6 @@ import java.util.*;
 /**
  * 货币配置类
  * 
- * @author oolongho
  */
 public class CurrencyConfig {
     

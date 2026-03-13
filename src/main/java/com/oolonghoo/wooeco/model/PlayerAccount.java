@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * 玩家账户模型 (线程安全)
  * 使用 BigDecimal 确保金额精度
  * 
- * @author oolongho
  */
 public class PlayerAccount {
     

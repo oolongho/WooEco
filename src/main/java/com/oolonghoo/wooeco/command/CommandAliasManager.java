@@ -13,7 +13,6 @@ import java.util.*;
  * 命令别名管理器
  * 动态注册和管理命令别名
  * 
- * @author oolongho
  */
 public class CommandAliasManager {
     

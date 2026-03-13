@@ -15,7 +15,6 @@ import java.util.Map;
 /**
  * 配置加载器基类
  * 
- * @author oolongho
  */
 public class ConfigLoader {
     

@@ -9,7 +9,6 @@ import java.util.UUID;
 /**
  * 余额变更事件
  * 
- * @author oolongho
  */
 public class BalanceChangeEvent extends Event implements Cancellable {
     

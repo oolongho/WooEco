@@ -12,7 +12,6 @@ import java.util.function.Consumer;
  * 提供智能调度和线程管理
  * 包含操作队列和限流机制
  * 
- * @author oolongho
  */
 public class ThreadUtils {
     

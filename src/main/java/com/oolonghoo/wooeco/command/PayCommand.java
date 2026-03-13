@@ -19,7 +19,6 @@ import java.util.Map;
 /**
  * 转账快捷命令
  * 
- * @author oolongho
  */
 public class PayCommand implements CommandExecutor, TabCompleter {
     

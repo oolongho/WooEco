@@ -10,7 +10,6 @@ import java.util.List;
  * 配置验证器
  * 验证配置文件的有效性
  * 
- * @author oolongho
  */
 public class ConfigValidator {
     

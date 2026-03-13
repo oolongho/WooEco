@@ -9,7 +9,6 @@ import java.util.UUID;
  * 交易事件
  * 当玩家之间进行转账时触发
  * 
- * @author oolongho
  */
 public class TransactionEvent extends Event {
     

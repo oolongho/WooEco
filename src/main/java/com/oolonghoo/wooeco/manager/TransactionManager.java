@@ -16,7 +16,6 @@ import com.oolonghoo.wooeco.model.Transaction;
 /**
  * 交易管理器
  * 
- * @author oolongho
  */
 public class TransactionManager {
     

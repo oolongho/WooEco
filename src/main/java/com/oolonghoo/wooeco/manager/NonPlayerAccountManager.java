@@ -18,7 +18,6 @@ import com.oolonghoo.wooeco.util.ThreadUtils;
  * 非玩家账户管理器
  * 管理城镇、势力、银行等非玩家实体账户
  * 
- * @author oolongho
  */
 public class NonPlayerAccountManager {
     

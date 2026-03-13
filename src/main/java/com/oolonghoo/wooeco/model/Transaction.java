@@ -5,7 +5,6 @@ import java.util.UUID;
 /**
  * 交易记录模型
  * 
- * @author oolongho
  */
 public class Transaction {
     

@@ -22,7 +22,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 管理在线玩家的内存缓存
  * 支持缓存禁用模式（直接读写数据库）
  * 
- * @author oolongho
  */
 public class PlayerDataManager {
     

@@ -13,7 +13,6 @@ import java.util.logging.Level;
  * 异步操作工具类
  * 提供带超时控制的异步执行
  * 
- * @author oolongho
  */
 public class AsyncUtils {
     

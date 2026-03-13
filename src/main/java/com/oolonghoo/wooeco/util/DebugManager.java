@@ -16,7 +16,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * 调试管理器
  * 提供详细的调试日志和诊断功能
  * 
- * @author oolongho
  */
 @SuppressWarnings("deprecation")
 public class DebugManager {

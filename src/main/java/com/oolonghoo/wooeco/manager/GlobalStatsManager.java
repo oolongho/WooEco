@@ -13,7 +13,6 @@ import java.util.concurrent.atomic.AtomicReference;
  * 全局统计管理器
  * 缓存全服总余额和账户数量
  * 
- * @author oolongho
  */
 public class GlobalStatsManager {
     

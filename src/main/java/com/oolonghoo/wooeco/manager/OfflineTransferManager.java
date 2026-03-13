@@ -13,7 +13,6 @@ import java.util.UUID;
 /**
  * 离线交易提示管理器
  * 
- * @author oolongho
  */
 public class OfflineTransferManager {
     

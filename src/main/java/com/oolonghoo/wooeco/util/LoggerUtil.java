@@ -7,7 +7,6 @@ import java.util.logging.Logger;
  * 日志工具类
  * 提供统一的日志记录方法
  * 
- * @author oolongho
  */
 public class LoggerUtil {
     

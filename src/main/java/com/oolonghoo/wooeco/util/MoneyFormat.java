@@ -15,7 +15,6 @@ import java.util.TreeMap;
  * 金额格式化工具类
  * 使用 BigDecimal 确保精度
  * 
- * @author oolongho
  */
 public class MoneyFormat {
     

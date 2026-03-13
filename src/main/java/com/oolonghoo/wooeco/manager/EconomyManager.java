@@ -16,7 +16,6 @@ import com.oolonghoo.wooeco.util.MoneyFormat;
  * 经济管理器
  * 处理所有余额相关操作
  * 
- * @author oolongho
  */
 public class EconomyManager {
     

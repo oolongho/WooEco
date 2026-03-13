@@ -9,7 +9,6 @@ import java.util.UUID;
 /**
  * 税率管理器
  * 
- * @author oolongho
  */
 public class TaxManager {
     

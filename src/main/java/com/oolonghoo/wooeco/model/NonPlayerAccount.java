@@ -10,7 +10,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * 非玩家账户模型
  * 用于城镇、势力、银行等非玩家实体
  * 
- * @author oolongho
  */
 public class NonPlayerAccount {
     

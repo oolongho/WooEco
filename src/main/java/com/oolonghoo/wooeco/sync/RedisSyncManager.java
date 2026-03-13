@@ -15,7 +15,6 @@ import java.util.UUID;
 /**
  * Redis 跨服同步管理器
  * 
- * @author oolongho
  */
 public class RedisSyncManager {
     

@@ -5,7 +5,6 @@ import java.util.UUID;
 /**
  * 经济日志模型
  * 
- * @author oolongho
  */
 public class EconomyLog {
     
