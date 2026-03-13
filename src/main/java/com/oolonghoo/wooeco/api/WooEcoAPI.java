@@ -46,7 +46,6 @@ import java.util.UUID;
  * <p>所有API方法都是线程安全的，可以异步调用。
  * 数据库操作会自动在异步线程中执行，不会阻塞主线程。</p>
  * 
- * @since 1.0.0
  */
 public class WooEcoAPI {
     

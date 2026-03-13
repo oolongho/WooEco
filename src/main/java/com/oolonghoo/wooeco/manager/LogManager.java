@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.UUID;
@@ -67,8 +68,8 @@ public class LogManager {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 logDAO.saveLog(log);
-            } catch (Exception e) {
-                plugin.getLogger().severe("保存日志失败: " + e.getMessage());
+            } catch (SQLException e) {
+                plugin.getLogger().severe(String.format("保存日志失败：%s", e.getMessage()));
             }
         });
     }
@@ -83,7 +84,7 @@ public class LogManager {
                 String logLine = formatLogLine(log, timestamp);
                 writer.println(logLine);
             } catch (IOException e) {
-                plugin.getLogger().warning("写入日志文件失败: " + e.getMessage());
+                plugin.getLogger().warning(String.format("写入日志文件失败：%s", e.getMessage()));
             }
         });
     }
@@ -128,8 +129,8 @@ public class LogManager {
                 logDAO.cleanupOldLogs(retentionDays);
                 plugin.getDatabaseManager().getTransactionDAO().cleanupOldTransactions(retentionDays);
                 cleanupOldLogFiles(retentionDays);
-            } catch (Exception e) {
-                plugin.getLogger().severe("清理过期日志失败: " + e.getMessage());
+            } catch (SQLException e) {
+                plugin.getLogger().severe(String.format("清理过期日志失败：%s", e.getMessage()));
             }
         });
     }
@@ -141,8 +142,8 @@ public class LogManager {
             for (File file : files) {
                 if (file.lastModified() < cutoffTime) {
                     if (file.delete()) {
-                        plugin.getLogger().info("删除过期日志文件: " + file.getName());
-                    }
+                    plugin.getLogger().info(String.format("删除过期日志文件：%s", file.getName()));
+                }
                 }
             }
         }
