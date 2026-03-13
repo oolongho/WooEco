@@ -65,7 +65,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAccount(uuid);
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -101,7 +101,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAccount(uuid);
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -150,7 +150,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAccountByName(playerName);
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -178,7 +178,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAccountByName(playerName);
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取玩家账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -227,9 +227,9 @@ public class PlayerDataManager {
         
         try {
             playerDAO.createAccount(account);
-            plugin.getLogger().info("为新玩家创建账户: " + playerName);
+            plugin.getLogger().info(String.format("为新玩家创建账户：%s", playerName));
         } catch (SQLException e) {
-            plugin.getLogger().severe("创建玩家账户失败: " + e.getMessage());
+            plugin.getLogger().severe(String.format("创建玩家账户失败：%s", e.getMessage()));
         }
         
         return account;
@@ -244,7 +244,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAccount(uuid);
             } catch (SQLException e) {
-                plugin.getLogger().severe("加载玩家数据失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("加载玩家数据失败：%s", e.getMessage()));
                 return null;
             }
         }, null);
@@ -279,7 +279,7 @@ public class PlayerDataManager {
             try {
                 playerDAO.saveOrUpdateAccount(account);
             } catch (SQLException e) {
-                plugin.getLogger().severe("保存玩家数据失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
             }
         });
     }
@@ -288,7 +288,7 @@ public class PlayerDataManager {
         try {
             playerDAO.saveOrUpdateAccount(account);
         } catch (SQLException e) {
-            plugin.getLogger().severe("保存玩家数据失败: " + e.getMessage());
+            plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
         }
     }
     
@@ -302,7 +302,7 @@ public class PlayerDataManager {
                 try {
                     playerDAO.saveOrUpdateAccount(account);
                 } catch (SQLException e) {
-                    plugin.getLogger().severe("保存玩家数据失败: " + e.getMessage());
+                    plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
                 }
             }
         }
@@ -331,7 +331,7 @@ public class PlayerDataManager {
             try {
                 playerDAO.resetAllDailyIncome();
             } catch (SQLException e) {
-                plugin.getLogger().severe("重置所有玩家每日收入失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("重置所有玩家每日收入失败：%s", e.getMessage()));
             }
         });
     }
@@ -370,7 +370,7 @@ public class PlayerDataManager {
             try {
                 return playerDAO.getAllAccounts();
             } catch (SQLException e) {
-                plugin.getLogger().severe("获取所有账户失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("获取所有账户失败：%s", e.getMessage()));
                 return onlineCache.values();
             }
         }, onlineCache.values());
