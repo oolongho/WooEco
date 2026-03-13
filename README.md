@@ -1,10 +1,5 @@
 # WooEco
 
-[!\[Version\](https://img.shields.io/badge/version-1.1.6-green.svg null)](https://github.com/oolonghoo/WooEco)
-[!\[Minecraft\](https://img.shields.io/badge/minecraft-1.21+-blue.svg null)](https://www.minecraft.net/)
-[!\[Java\](https://img.shields.io/badge/java-21+-orange.svg null)](https://adoptium.net/)
-[!\[License\](https://img.shields.io/badge/license-MIT-lightgrey.svg null)](LICENSE)
-
 🍵 一款高性能、多功能的 Minecraft 经济插件
 
 ## 特色
