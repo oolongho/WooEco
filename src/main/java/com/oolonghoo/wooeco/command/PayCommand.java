@@ -62,7 +62,12 @@ public class PayCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         
-        if (amount <= 0) {
+        if (amount <= 0 || Double.isNaN(amount) || Double.isInfinite(amount)) {
+            messages.send(sender, "invalid-amount");
+            return true;
+        }
+        double maxAmount = plugin.getConfig().getDouble("transaction.max-amount", 1000000);
+        if (amount > maxAmount) {
             messages.send(sender, "invalid-amount");
             return true;
         }
