@@ -70,23 +70,37 @@ public class GiveAllCommand extends AbstractSubCommandHandler {
         String operatorName = sender.getName();
         
         sender.sendMessage(messages.getWithPrefix("admin.batch-start"));
-        
-        long batchStart = System.nanoTime();
-        EconomyManager.BatchResult result = economyManager.depositAll(
-            BigDecimal.valueOf(amount), onlineOnly, operator, operatorName
-        );
-        long batchTime = System.nanoTime() - batchStart;
-        
-        plugin.getDebugManager().batchOperation("GIVEALL", result.getSuccessCount(), result.getFailedCount(), batchTime);
-        
         String formatted = plugin.getCurrencyConfig().format(amount);
-        messages.send(sender, "admin.giveall-success", Map.of(
-            "count", String.valueOf(result.getSuccessCount()),
-            "failed", String.valueOf(result.getFailedCount()),
-            "symbol", messages.getSymbol(),
-            "amount", formatted
-        ));
         
+        if (plugin.getConfig().getBoolean("performance.batch-async", true)) {
+            long batchStart = System.nanoTime();
+            economyManager.depositAllAsync(
+                BigDecimal.valueOf(amount), onlineOnly, operator, operatorName,
+                result -> {
+                    long batchTime = System.nanoTime() - batchStart;
+                    plugin.getDebugManager().batchOperation("GIVEALL", result.getSuccessCount(), result.getFailedCount(), batchTime);
+                    messages.send(sender, "admin.giveall-success", Map.of(
+                        "count", String.valueOf(result.getSuccessCount()),
+                        "failed", String.valueOf(result.getFailedCount()),
+                        "symbol", messages.getSymbol(),
+                        "amount", formatted
+                    ));
+                }
+            );
+        } else {
+            long batchStart = System.nanoTime();
+            EconomyManager.BatchResult result = economyManager.depositAll(
+                BigDecimal.valueOf(amount), onlineOnly, operator, operatorName
+            );
+            long batchTime = System.nanoTime() - batchStart;
+            plugin.getDebugManager().batchOperation("GIVEALL", result.getSuccessCount(), result.getFailedCount(), batchTime);
+            messages.send(sender, "admin.giveall-success", Map.of(
+                "count", String.valueOf(result.getSuccessCount()),
+                "failed", String.valueOf(result.getFailedCount()),
+                "symbol", messages.getSymbol(),
+                "amount", formatted
+            ));
+        }
         return true;
     }
     

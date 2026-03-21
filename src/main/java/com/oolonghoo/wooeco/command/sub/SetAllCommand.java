@@ -82,19 +82,29 @@ public class SetAllCommand extends AbstractSubCommandHandler {
         String operatorName = sender.getName();
         
         sender.sendMessage(messages.getWithPrefix("admin.batch-start"));
-        
-        EconomyManager.BatchResult result = economyManager.setAll(
-            BigDecimal.valueOf(amount), onlineOnly, operator, operatorName
-        );
-        
         String formatted = plugin.getCurrencyConfig().format(amount);
-        messages.send(sender, "admin.setall-success", Map.of(
-            "count", String.valueOf(result.getSuccessCount()),
-            "failed", String.valueOf(result.getFailedCount()),
-            "symbol", messages.getSymbol(),
-            "amount", formatted
-        ));
         
+        if (plugin.getConfig().getBoolean("performance.batch-async", true)) {
+            economyManager.setAllAsync(
+                BigDecimal.valueOf(amount), onlineOnly, operator, operatorName,
+                result -> messages.send(sender, "admin.setall-success", Map.of(
+                    "count", String.valueOf(result.getSuccessCount()),
+                    "failed", String.valueOf(result.getFailedCount()),
+                    "symbol", messages.getSymbol(),
+                    "amount", formatted
+                ))
+            );
+        } else {
+            EconomyManager.BatchResult result = economyManager.setAll(
+                BigDecimal.valueOf(amount), onlineOnly, operator, operatorName
+            );
+            messages.send(sender, "admin.setall-success", Map.of(
+                "count", String.valueOf(result.getSuccessCount()),
+                "failed", String.valueOf(result.getFailedCount()),
+                "symbol", messages.getSymbol(),
+                "amount", formatted
+            ));
+        }
         return true;
     }
     
