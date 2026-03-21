@@ -156,6 +156,11 @@ public class ConfigValidator {
             if (poolSize < 1 || poolSize > 100) {
                 warnings.add("database.mysql.pool-size 建议在1-100之间，当前为: " + poolSize);
             }
+            
+            String tablePrefix = config.getString("database.mysql.table-prefix", "wooeco_");
+            if (tablePrefix != null && !tablePrefix.matches("^[a-zA-Z0-9_]{1,32}$")) {
+                warnings.add("database.mysql.table-prefix 建议仅使用字母、数字、下划线，长度1-32，无效字符将被移除");
+            }
         }
         
         int autoSave = config.getInt("database.auto-save", 60);

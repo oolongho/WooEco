@@ -142,8 +142,8 @@ public class LogManager {
             for (File file : files) {
                 if (file.lastModified() < cutoffTime) {
                     if (file.delete()) {
-                    plugin.getLogger().info(String.format("删除过期日志文件：%s", file.getName()));
-                }
+                        plugin.getLogger().info(String.format("删除过期日志文件：%s", file.getName()));
+                    }
                 }
             }
         }
