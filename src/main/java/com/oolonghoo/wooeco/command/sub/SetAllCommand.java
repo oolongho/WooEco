@@ -67,7 +67,12 @@ public class SetAllCommand extends AbstractSubCommandHandler {
             return true;
         }
         
-        if (amount < 0) {
+        if (amount < 0 || Double.isNaN(amount) || Double.isInfinite(amount)) {
+            messages.send(sender, "invalid-amount");
+            return true;
+        }
+        double maxBalance = plugin.getConfig().getDouble("currency.max-balance", 1e16);
+        if (amount > maxBalance) {
             messages.send(sender, "invalid-amount");
             return true;
         }
