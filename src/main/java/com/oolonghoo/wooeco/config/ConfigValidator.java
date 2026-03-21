@@ -171,6 +171,11 @@ public class ConfigValidator {
     
     private void validatePerformance(FileConfiguration config) {
         int asyncTimeout = config.getInt("performance.async-timeout", 3);
+        
+        int historyPerPage = config.getInt("history.per-page", 10);
+        if (historyPerPage < 1 || historyPerPage > 50) {
+            warnings.add("history.per-page 建议在1-50之间，当前为: " + historyPerPage);
+        }
         if (asyncTimeout < 1 || asyncTimeout > 30) {
             warnings.add("performance.async-timeout 建议在1-30秒之间，当前为: " + asyncTimeout);
         }

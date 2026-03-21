@@ -2,7 +2,13 @@ package com.oolonghoo.wooeco.manager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
 
@@ -452,6 +458,169 @@ public class EconomyManager {
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
             return new BatchResult(0, totalAccounts, amount);
+        }
+    }
+    
+    /**
+     * 异步批量操作，避免大量玩家时阻塞主线程
+     * DB 操作在异步线程执行，事件和回调在主线程执行
+     */
+    public void depositAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
+                                Consumer<BatchResult> callback) {
+        runBatchAsync(() -> {
+            Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+            List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
+            if (onlineOnly && accounts != null) {
+                for (PlayerAccount a : accounts) {
+                    onlineUuids.add(a.getUuid());
+                }
+            }
+            Map<UUID, BigDecimal> oldBalances = new HashMap<>();
+            Map<UUID, String> nameMap = new HashMap<>();
+            for (PlayerAccount a : accounts) {
+                oldBalances.put(a.getUuid(), a.getBalance());
+                nameMap.put(a.getUuid(), a.getPlayerName());
+            }
+            int totalAccounts = accounts.size();
+            if (totalAccounts == 0) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
+            }
+            try {
+                int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                    .depositAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+                return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
+            } catch (SQLException e) {
+                plugin.getLogger().severe("批量存款失败：" + e.getMessage());
+                return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
+            }
+        }, (ctx) -> {
+            for (Map.Entry<UUID, BigDecimal> e : ctx.oldBalances.entrySet()) {
+                BigDecimal newBalance = e.getValue().add(ctx.amount);
+                BalanceChangeEvent event = new BalanceChangeEvent(e.getKey(), e.getValue().doubleValue(), newBalance.doubleValue(), ctx.amount.doubleValue(), BalanceChangeReason.ADMIN);
+                Bukkit.getPluginManager().callEvent(event);
+                logManager.logBalanceChange(e.getKey(), ctx.nameMap.get(e.getKey()), ctx.action, ctx.amount.doubleValue(), e.getValue().doubleValue(), newBalance.doubleValue(), ctx.operator, ctx.operatorName, null);
+                if (plugin.getRedisSyncManager() != null) {
+                    plugin.getRedisSyncManager().publishBalanceUpdate(e.getKey(), ctx.nameMap.get(e.getKey()), newBalance.doubleValue());
+                }
+            }
+            playerDataManager.invalidateAllCache();
+        }, callback);
+    }
+    
+    public void withdrawAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
+                                 Consumer<BatchResult> callback) {
+        runBatchAsync(() -> {
+            Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+            List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
+            if (onlineOnly && accounts != null) {
+                for (PlayerAccount a : accounts) {
+                    onlineUuids.add(a.getUuid());
+                }
+            }
+            Map<UUID, BigDecimal> oldBalances = new HashMap<>();
+            Map<UUID, String> nameMap = new HashMap<>();
+            for (PlayerAccount a : accounts) {
+                oldBalances.put(a.getUuid(), a.getBalance());
+                nameMap.put(a.getUuid(), a.getPlayerName());
+            }
+            int totalAccounts = accounts.size();
+            if (totalAccounts == 0) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
+            }
+            try {
+                int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                    .withdrawAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+                return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
+            } catch (SQLException e) {
+                plugin.getLogger().severe("批量扣款失败：" + e.getMessage());
+                return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
+            }
+        }, (ctx) -> {
+            for (Map.Entry<UUID, BigDecimal> e : ctx.oldBalances.entrySet()) {
+                if (e.getValue().compareTo(ctx.amount) >= 0) {
+                    BigDecimal newBalance = e.getValue().subtract(ctx.amount);
+                    BalanceChangeEvent event = new BalanceChangeEvent(e.getKey(), e.getValue().doubleValue(), newBalance.doubleValue(), -ctx.amount.doubleValue(), BalanceChangeReason.ADMIN);
+                    Bukkit.getPluginManager().callEvent(event);
+                    logManager.logBalanceChange(e.getKey(), ctx.nameMap.get(e.getKey()), ctx.action, ctx.amount.doubleValue(), e.getValue().doubleValue(), newBalance.doubleValue(), ctx.operator, ctx.operatorName, null);
+                    if (plugin.getRedisSyncManager() != null) {
+                        plugin.getRedisSyncManager().publishBalanceUpdate(e.getKey(), ctx.nameMap.get(e.getKey()), newBalance.doubleValue());
+                    }
+                }
+            }
+            playerDataManager.invalidateAllCache();
+        }, callback);
+    }
+    
+    public void setAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
+                            Consumer<BatchResult> callback) {
+        runBatchAsync(() -> {
+            Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+            List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
+            if (onlineOnly && accounts != null) {
+                for (PlayerAccount a : accounts) {
+                    onlineUuids.add(a.getUuid());
+                }
+            }
+            Map<UUID, BigDecimal> oldBalances = new HashMap<>();
+            Map<UUID, String> nameMap = new HashMap<>();
+            for (PlayerAccount a : accounts) {
+                oldBalances.put(a.getUuid(), a.getBalance());
+                nameMap.put(a.getUuid(), a.getPlayerName());
+            }
+            int totalAccounts = accounts.size();
+            if (totalAccounts == 0) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
+            }
+            try {
+                int updated = plugin.getPlayerDataManager().getPlayerDAO()
+                    .setAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
+                return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
+            } catch (SQLException e) {
+                plugin.getLogger().severe("批量设置余额失败：" + e.getMessage());
+                return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
+            }
+        }, (ctx) -> {
+            for (Map.Entry<UUID, BigDecimal> e : ctx.oldBalances.entrySet()) {
+                BalanceChangeEvent event = new BalanceChangeEvent(e.getKey(), e.getValue().doubleValue(), ctx.amount.doubleValue(), ctx.amount.subtract(e.getValue()).doubleValue(), BalanceChangeReason.ADMIN);
+                Bukkit.getPluginManager().callEvent(event);
+                logManager.logBalanceChange(e.getKey(), ctx.nameMap.get(e.getKey()), ctx.action, ctx.amount.subtract(e.getValue()).abs().doubleValue(), e.getValue().doubleValue(), ctx.amount.doubleValue(), ctx.operator, ctx.operatorName, null);
+                if (plugin.getRedisSyncManager() != null) {
+                    plugin.getRedisSyncManager().publishBalanceUpdate(e.getKey(), ctx.nameMap.get(e.getKey()), ctx.amount.doubleValue());
+                }
+            }
+            playerDataManager.invalidateAllCache();
+        }, callback);
+    }
+    
+    private void runBatchAsync(java.util.function.Supplier<BatchContext> asyncWork,
+                               Consumer<BatchContext> syncPostProcess,
+                               Consumer<BatchResult> callback) {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            BatchContext ctx = asyncWork.get();
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                syncPostProcess.accept(ctx);
+                callback.accept(ctx.result);
+            });
+        });
+    }
+    
+    private static class BatchContext {
+        final BatchResult result;
+        final Map<UUID, BigDecimal> oldBalances;
+        final Map<UUID, String> nameMap;
+        final BigDecimal amount;
+        final String action;
+        final String operator;
+        final String operatorName;
+        BatchContext(BatchResult result, Map<UUID, BigDecimal> oldBalances, Map<UUID, String> nameMap,
+                     BigDecimal amount, String action, String operator, String operatorName) {
+            this.result = result;
+            this.oldBalances = oldBalances;
+            this.nameMap = nameMap;
+            this.amount = amount;
+            this.action = action;
+            this.operator = operator;
+            this.operatorName = operatorName;
         }
     }
     

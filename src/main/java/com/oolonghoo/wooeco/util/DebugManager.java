@@ -67,6 +67,11 @@ public class DebugManager {
     }
     
     private void initLogFile() {
+        if (logWriter != null) {
+            logWriter.flush();
+            logWriter.close();
+            logWriter = null;
+        }
         try {
             File logFolder = new File(plugin.getDataFolder(), "debug");
             if (!logFolder.exists()) {
