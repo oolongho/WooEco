@@ -77,11 +77,16 @@ public abstract class AbstractSubCommandHandler implements SubCommandHandler {
     
     /**
      * 解析金额参数
+     * 拒绝 NaN、Infinity、非正数及超过配置上限的值
      */
     protected Double parseAmount(String amountStr) {
         try {
             double amount = Double.parseDouble(amountStr);
-            if (amount <= 0) {
+            if (amount <= 0 || Double.isNaN(amount) || Double.isInfinite(amount)) {
+                return null;
+            }
+            double maxBalance = plugin.getConfig().getDouble("currency.max-balance", 1e16);
+            if (amount > maxBalance) {
                 return null;
             }
             return amount;
