@@ -65,7 +65,7 @@ public class DatabaseConfig {
             this.mysqlUser = mysqlSection.getString("user", "root");
             this.mysqlPassword = mysqlSection.getString("password", "");
             this.mysqlPoolSize = mysqlSection.getInt("pool-size", 10);
-            this.mysqlTablePrefix = mysqlSection.getString("table-prefix", "wooeco_");
+            this.mysqlTablePrefix = sanitizeTablePrefix(mysqlSection.getString("table-prefix", "wooeco_"));
         } else {
             setMySqlDefaults();
         }
@@ -105,6 +105,21 @@ public class DatabaseConfig {
         this.usernameIgnoreCase = false;
         setMySqlDefaults();
         setSyncDefaults();
+    }
+    
+    /**
+     * 校验表前缀，防止 SQL 注入
+     * 仅允许字母、数字、下划线，长度限制 32 字符
+     */
+    private static String sanitizeTablePrefix(String prefix) {
+        if (prefix == null || prefix.isEmpty()) {
+            return "wooeco_";
+        }
+        String sanitized = prefix.replaceAll("[^a-zA-Z0-9_]", "");
+        if (sanitized.isEmpty()) {
+            return "wooeco_";
+        }
+        return sanitized.length() > 32 ? sanitized.substring(0, 32) : sanitized;
     }
     
     private void setMySqlDefaults() {

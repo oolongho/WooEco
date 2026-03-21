@@ -8,8 +8,6 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
 
-import java.io.*;
-import java.util.Base64;
 import java.util.UUID;
 
 /**
@@ -192,23 +190,52 @@ public class RedisSyncManager {
         }
     }
     
+    /**
+     * 使用安全的分隔符格式序列化，避免 Java 反序列化漏洞 (RCE)
+     * 格式: type|serverId|uuid|playerName|balance|dailyIncome|timestamp
+     */
     private String serialize(SyncMessage message) {
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(bos)) {
-            oos.writeObject(message);
-            return Base64.getEncoder().encodeToString(bos.toByteArray());
-        } catch (IOException e) {
-            throw new RuntimeException("序列化失败", e);
-        }
+        String playerName = message.getPlayerName() != null ? message.getPlayerName().replace("|", "_") : "";
+        return message.getType().name() + "|" +
+                message.getServerId().replace("|", "_") + "|" +
+                message.getUuid() + "|" +
+                playerName + "|" +
+                message.getBalance() + "|" +
+                message.getDailyIncome() + "|" +
+                message.getTimestamp();
     }
     
     private SyncMessage deserialize(String data) {
-        try (ByteArrayInputStream bis = new ByteArrayInputStream(Base64.getDecoder().decode(data));
-             ObjectInputStream ois = new ObjectInputStream(bis)) {
-            return (SyncMessage) ois.readObject();
-        } catch (IOException | ClassNotFoundException e) {
-            throw new RuntimeException("反序列化失败", e);
+        String[] parts = data.split("\\|", -1);
+        if (parts.length < 7) {
+            throw new IllegalArgumentException("无效的同步消息格式");
         }
+        SyncType type;
+        try {
+            type = SyncType.valueOf(parts[0]);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("未知的消息类型: " + parts[0]);
+        }
+        String serverId = parts[1];
+        UUID uuid;
+        try {
+            uuid = UUID.fromString(parts[2]);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("无效的 UUID: " + parts[2]);
+        }
+        String playerName = parts[3].isEmpty() ? null : parts[3];
+        double balance = parseSafeDouble(parts[4]);
+        double dailyIncome = parseSafeDouble(parts[5]);
+        long timestamp = Long.parseLong(parts[6]);
+        return new SyncMessage(type, serverId, uuid, playerName, balance, dailyIncome, timestamp);
+    }
+    
+    private static double parseSafeDouble(String s) {
+        double d = Double.parseDouble(s);
+        if (Double.isNaN(d) || Double.isInfinite(d)) {
+            throw new IllegalArgumentException("无效的数值: " + s);
+        }
+        return d;
     }
     
     public void reload() {
@@ -243,9 +270,7 @@ public class RedisSyncManager {
         DAILY_INCOME_RESET
     }
     
-    public static class SyncMessage implements Serializable {
-        private static final long serialVersionUID = 1L;
-        
+    public static class SyncMessage {
         private final SyncType type;
         private final String serverId;
         private final UUID uuid;
