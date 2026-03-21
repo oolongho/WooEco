@@ -18,6 +18,8 @@ settings:
 performance:
   # 异步操作超时时间（秒）
   async-timeout: 3
+  # 批量操作(giveall/takeall/setall)是否异步执行，避免大量玩家时阻塞主线程
+  batch-async: true
   # 是否强制异步执行（建议保持false）
   force-async: false
   # 是否禁用缓存 (直接读写数据库)
@@ -134,6 +136,11 @@ command-cooldown:
   # 冷却提示消息
   # %time%: 剩余冷却时间(秒)
   message: "&c请等待 %time% 秒后再次使用此命令"
+
+# 交易历史设置
+history:
+  # 每页显示数量
+  per-page: 10
 
 # 排行榜设置
 leaderboard:
