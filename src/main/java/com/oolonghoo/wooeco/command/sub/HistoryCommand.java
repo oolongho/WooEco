@@ -114,7 +114,7 @@ public class HistoryCommand extends AbstractSubCommandHandler {
         final UUID uuid = targetUuid;
         final String name = targetName;
         final int currentPage = page;
-        final int perPage = 10;
+        final int perPage = Math.max(1, Math.min(50, plugin.getConfig().getInt("history.per-page", 10)));
         final int offset = (page - 1) * perPage;
         
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
@@ -196,14 +196,15 @@ public class HistoryCommand extends AbstractSubCommandHandler {
     
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
+        int maxPage = 10;
         if (args.length == 1) {
             if (sender.hasPermission("wooeco.history.other")) {
                 return getOnlinePlayerNames();
             }
-            return getPageCompletions(10);
+            return getPageCompletions(maxPage);
         }
         if (args.length == 2) {
-            return getPageCompletions(10);
+            return getPageCompletions(maxPage);
         }
         return List.of();
     }
