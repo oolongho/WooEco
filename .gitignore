@@ -26,6 +26,7 @@ Thumbs.db
 
 # Plugin specific
 /logs/
+/oolongho/
 /debug/
 /data.db
 /data.db-journal
