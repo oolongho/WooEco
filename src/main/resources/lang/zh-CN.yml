@@ -60,7 +60,7 @@ top:
   page-info: "&7第 {page}/{total} 页"
   format: "&f{rank}. &e{player} &7- {symbol}{balance}"
   no-data: "&c暂无数据"
-  usage: "&c用法: /{command} top <all|income> [页码]"
+  usage: "&c用法: /{command} top <all|income [day/week/month]> [页码]"
 
 # 查看玩家
 look:
@@ -97,7 +97,7 @@ help:
   pay: "&e/{command} pay <玩家> <金额> &7- 转账"
   income: "&e/{command} income [day/week/month] [玩家] &7- 查看收入"
   look: "&e/{command} look <玩家> &7- 查看其他玩家余额"
-  top: "&e/{command} top <all|income> [页码] &7- 排行榜"
+  top: "&e/{command} top <all|income [day/week/month]> [页码] &7- 排行榜"
   history: "&e/{command} history [玩家] [页码] &7- 查看交易历史"
   admin-give: "&e/{command} give <玩家> <金额> &7- 给予金币"
   admin-giveall: "&e/{command} giveall <all|online> <金额> &7- 批量给予"
@@ -106,4 +106,33 @@ help:
   admin-set: "&e/{command} set <玩家> <金额> &7- 设置余额"
   admin-setall: "&e/{command} setall <all|online> <金额> &7- 批量设置"
   reload: "&e/{command} reload &7- 重载配置"
+  paytoggle: "&e/{command} paytoggle [玩家] &7- 切换收款功能"
+  migrate: "&e/{command} migrate <vault|xconomy|status> [--dry-run] &7- 数据迁移"
   footer: "&e===================================="
+
+# 收款开关
+paytoggle:
+  enabled: "&a你已开启收款功能"
+  disabled: "&c你已关闭收款功能，其他玩家无法向你付款"
+  status-enabled: "&a你的收款功能已开启"
+  status-disabled: "&c你的收款功能已关闭，其他玩家无法向你付款"
+  already-enabled: "&a你的收款功能已经是开启状态"
+  already-disabled: "&c你的收款功能已经是关闭状态"
+  target-enabled: "&a玩家 {player} 的收款功能已开启"
+  target-disabled: "&a玩家 {player} 的收款功能已关闭"
+  cannot-pay: "&c玩家 {player} 已关闭收款功能"
+
+# 数据迁移
+migration:
+  start: "&a开始从 {source} 迁移数据..."
+  progress: "&a迁移进度: {current}/{total} ({percent}%)"
+  completed: "&a迁移完成！玩家: {players}, 非玩家账户: {accounts}, 耗时: {time}ms"
+  failed: "&c迁移失败: {error}"
+  no-source: "&c未检测到其他 Vault 经济插件！请确保旧经济插件仍在运行。"
+  self-migrate: "&c不能从自身迁移数据！请先在 config.yml 中设置 vault.register-as-provider: false"
+  dry-run: "&a预检完成：将迁移 {players} 个玩家, {accounts} 个非玩家账户"
+  already-running: "&c迁移正在进行中，请等待完成。"
+  vault-provider: "&a检测到 Vault 经济插件: {name}"
+  status-none: "&c尚未执行过迁移。"
+  status-result: "&a上次迁移: 来源={source}, 玩家={players}, 非玩家账户={accounts}, 耗时={time}ms, 成功={success}"
+  usage: "&c用法: /wooeco migrate <vault|xconomy|status> [--dry-run]"

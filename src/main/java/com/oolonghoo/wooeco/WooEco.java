@@ -22,9 +22,11 @@ import com.oolonghoo.wooeco.manager.LeaderboardManager;
 import com.oolonghoo.wooeco.manager.LogManager;
 import com.oolonghoo.wooeco.manager.NonPlayerAccountManager;
 import com.oolonghoo.wooeco.manager.OfflineTransferManager;
+import com.oolonghoo.wooeco.manager.PayToggleManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.manager.TaxManager;
 import com.oolonghoo.wooeco.manager.TransactionManager;
+import com.oolonghoo.wooeco.migration.MigrationManager;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
 import com.oolonghoo.wooeco.util.DebugManager;
 import com.oolonghoo.wooeco.util.UUIDHandler;
@@ -60,6 +62,8 @@ public class WooEco extends JavaPlugin {
     private DebugManager debugManager;
     private CommandAliasManager commandAliasManager;
     private CooldownManager cooldownManager;
+    private PayToggleManager payToggleManager;
+    private MigrationManager migrationManager;
     
     @Override
     public void onEnable() {
@@ -102,6 +106,8 @@ public class WooEco extends JavaPlugin {
         nonPlayerAccountManager = new NonPlayerAccountManager(this);
         globalStatsManager = new GlobalStatsManager(this);
         uuidHandler = new UUIDHandler(this);
+        payToggleManager = new PayToggleManager(this);
+        migrationManager = new MigrationManager(this);
         
         if (databaseConfig.isSyncEnabled()) {
             redisSyncManager = new RedisSyncManager(this);
@@ -110,9 +116,14 @@ public class WooEco extends JavaPlugin {
         }
         
         if (getServer().getPluginManager().getPlugin("Vault") != null) {
-            vaultHook = new VaultHook(this);
-            vaultHook.hook();
-            getLogger().info("[WooEco] Vault 集成已启用");
+            boolean registerProvider = getConfig().getBoolean("vault.register-as-provider", true);
+            if (registerProvider) {
+                vaultHook = new VaultHook(this);
+                vaultHook.hook();
+                getLogger().info("[WooEco] Vault 集成已启用");
+            } else {
+                getLogger().info("[WooEco] Vault 注册已禁用（迁移模式）");
+            }
         }
         
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
@@ -334,5 +345,13 @@ public class WooEco extends JavaPlugin {
     
     public CooldownManager getCooldownManager() {
         return cooldownManager;
+    }
+    
+    public PayToggleManager getPayToggleManager() {
+        return payToggleManager;
+    }
+    
+    public MigrationManager getMigrationManager() {
+        return migrationManager;
     }
 }

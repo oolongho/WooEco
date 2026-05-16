@@ -5,8 +5,10 @@ import com.oolonghoo.wooeco.config.DatabaseConfig;
 import com.oolonghoo.wooeco.database.dao.LogDAO;
 import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
 import com.oolonghoo.wooeco.database.dao.OfflineTransferTipDAO;
+import com.oolonghoo.wooeco.database.dao.PayToggleDAO;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.database.dao.TransactionDAO;
+import com.oolonghoo.wooeco.database.dao.UUIDMappingDAO;
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 
@@ -47,6 +49,8 @@ public class DatabaseManager {
     private LogDAO logDAO;
     private OfflineTransferTipDAO offlineTransferTipDAO;
     private NonPlayerAccountDAO nonPlayerAccountDAO;
+    private PayToggleDAO payToggleDAO;
+    private UUIDMappingDAO uuidMappingDAO;
     
     public DatabaseManager(WooEco plugin) {
         this.plugin = plugin;
@@ -245,6 +249,41 @@ public class DatabaseManager {
                 "updated_at INTEGER NOT NULL)";
             
             stmt.execute(nonPlayerAccountsTable);
+            
+            String payToggleTable = config.isMySQL() ?
+                "CREATE TABLE IF NOT EXISTS " + tablePrefix + "pay_toggle (" +
+                "uuid VARCHAR(36) PRIMARY KEY, " +
+                "enabled TINYINT DEFAULT 1, " +
+                "updated_at BIGINT NOT NULL" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                :
+                "CREATE TABLE IF NOT EXISTS " + tablePrefix + "pay_toggle (" +
+                "uuid VARCHAR(36) PRIMARY KEY, " +
+                "enabled INTEGER DEFAULT 1, " +
+                "updated_at INTEGER NOT NULL)";
+            
+            stmt.execute(payToggleTable);
+            
+            String uuidMappingTable = config.isMySQL() ?
+                "CREATE TABLE IF NOT EXISTS " + tablePrefix + "uuid_mapping (" +
+                "offline_uuid VARCHAR(36) PRIMARY KEY, " +
+                "online_uuid VARCHAR(36) NOT NULL, " +
+                "player_name VARCHAR(16), " +
+                "updated_at BIGINT NOT NULL, " +
+                "INDEX idx_online_uuid (online_uuid)" +
+                ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+                :
+                "CREATE TABLE IF NOT EXISTS " + tablePrefix + "uuid_mapping (" +
+                "offline_uuid VARCHAR(36) PRIMARY KEY, " +
+                "online_uuid VARCHAR(36) NOT NULL, " +
+                "player_name VARCHAR(16), " +
+                "updated_at INTEGER NOT NULL)";
+            
+            stmt.execute(uuidMappingTable);
+            
+            if (!config.isMySQL()) {
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_uuid_mapping_online ON " + tablePrefix + "uuid_mapping(online_uuid)");
+            }
         } finally {
             writeLock.unlock();
         }
@@ -256,6 +295,8 @@ public class DatabaseManager {
         logDAO = new LogDAO(this);
         offlineTransferTipDAO = new OfflineTransferTipDAO(this);
         nonPlayerAccountDAO = new NonPlayerAccountDAO(this);
+        payToggleDAO = new PayToggleDAO(this);
+        uuidMappingDAO = new UUIDMappingDAO(this);
     }
     
     public Connection getConnection() throws SQLException {
@@ -302,6 +343,14 @@ public class DatabaseManager {
     
     public NonPlayerAccountDAO getNonPlayerAccountDAO() {
         return nonPlayerAccountDAO;
+    }
+    
+    public PayToggleDAO getPayToggleDAO() {
+        return payToggleDAO;
+    }
+    
+    public UUIDMappingDAO getUUIDMappingDAO() {
+        return uuidMappingDAO;
     }
     
     public WooEco getPlugin() {

@@ -9,6 +9,7 @@ settings:
   # Default: 根据server.properties的online-mode自动判断
   # Online: 始终使用正版UUID
   # Offline: 支持离线UUID，适合离线服务器
+  # SemiOnline: 半在线模式，适合GeyserMC混合服务器
   uuid-mode: Default
   
   # 用户名是否忽略大小写 (适合离线服务器)
@@ -225,3 +226,37 @@ non-player-account:
       - "nation-"
       - "bank-"
       - "tax"
+
+# Vault集成设置
+vault:
+  # 是否注册为Vault经济提供者
+  # 迁移期间设为false，防止WooEco注册为Vault提供者
+  register-as-provider: true
+
+# 数据迁移设置
+migration:
+  # XConomy数据源设置
+  xconomy:
+    # 数据库类型: SQLite 或 MySQL
+    type: "MySQL"
+    
+    # SQLite 文件路径（相对于插件目录）
+    sqlite-file: "plugins/XConomy/data.db"
+    
+    # 表前缀/后缀（MySQL和SQLite共用）
+    table-prefix: ""
+    table-suffix: ""
+    
+    # MySQL 设置
+    mysql:
+      host: localhost
+      port: 3306
+      database: ""
+      user: ""
+      password: ""
+    
+    # 是否迁移交易记录（仅MySQL）
+    migrate-records: true
+    
+    # 是否迁移非玩家账户
+    migrate-non-player: true

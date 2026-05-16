@@ -141,4 +141,31 @@ public class LogDAO {
         }
         return BigDecimal.ZERO;
     }
+
+    public List<PlayerAccount> getTopIncomesByPeriod(long fromTimestamp, int limit) throws SQLException {
+        String sql = "SELECT l.uuid, l.player_name, COALESCE(SUM(l.amount), 0) as period_income " +
+                     "FROM " + tablePrefix + "logs l " +
+                     "WHERE l.reason = 'PAYMENT_RECEIVED' AND l.timestamp >= ? " +
+                     "GROUP BY l.uuid, l.player_name " +
+                     "ORDER BY period_income DESC LIMIT ?";
+        List<PlayerAccount> accounts = new ArrayList<>();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, fromTimestamp);
+            stmt.setInt(2, limit);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                PlayerAccount account = new PlayerAccount(
+                    UUID.fromString(rs.getString("uuid")),
+                    rs.getString("player_name")
+                );
+                account.setDailyIncome(rs.getBigDecimal("period_income"));
+                accounts.add(account);
+            }
+        } finally {
+            dbManager.getReadLock().unlock();
+        }
+        return accounts;
+    }
 }

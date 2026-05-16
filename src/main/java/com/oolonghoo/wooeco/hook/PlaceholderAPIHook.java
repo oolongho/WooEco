@@ -5,6 +5,7 @@ import com.oolonghoo.wooeco.manager.EconomyManager;
 import com.oolonghoo.wooeco.manager.GlobalStatsManager;
 import com.oolonghoo.wooeco.manager.LeaderboardManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
+import com.oolonghoo.wooeco.model.IncomePeriod;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
@@ -128,7 +129,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         
         if (identifier.equals("top_rank")) {
             if (player == null) return "-";
-            return String.valueOf(getPlayerRank(player.getUniqueId(), false));
+            return String.valueOf(getPlayerRank(player.getUniqueId(), IncomePeriod.DAY));
         }
         
         if (identifier.startsWith("top_rank_")) {
@@ -137,32 +138,73 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             if (pdm == null) return "-";
             PlayerAccount account = pdm.getAccount(playerName);
             if (account == null) return "-";
-            return String.valueOf(getPlayerRank(account.getUuid(), false));
+            return String.valueOf(getPlayerRank(account.getUuid(), IncomePeriod.DAY));
         }
         
         if (identifier.startsWith("top_player_")) {
             String indexStr = identifier.substring(11);
-            return getTopPlayer(indexStr, false);
+            return getTopPlayer(indexStr, IncomePeriod.DAY);
         }
         
         if (identifier.startsWith("top_balance_formatted_")) {
             String indexStr = identifier.substring(22);
-            return getTopBalance(indexStr, false, true);
+            return getTopBalance(indexStr, IncomePeriod.DAY, true);
         }
         
         if (identifier.startsWith("top_balance_")) {
             String indexStr = identifier.substring(12);
-            return getTopBalance(indexStr, false, false);
+            return getTopBalance(indexStr, IncomePeriod.DAY, false);
+        }
+        
+        if (identifier.startsWith("top_income_formatted_")) {
+            String rest = identifier.substring(21);
+            IncomePeriod period = IncomePeriod.DAY;
+            String indexStr = rest;
+            if (rest.startsWith("week_")) {
+                period = IncomePeriod.WEEK;
+                indexStr = rest.substring(5);
+            } else if (rest.startsWith("month_")) {
+                period = IncomePeriod.MONTH;
+                indexStr = rest.substring(6);
+            } else if (rest.startsWith("day_")) {
+                period = IncomePeriod.DAY;
+                indexStr = rest.substring(4);
+            }
+            return getTopIncome(indexStr, period, true);
         }
         
         if (identifier.startsWith("top_income_player_")) {
-            String indexStr = identifier.substring(18);
-            return getTopPlayer(indexStr, true);
+            String rest = identifier.substring(18);
+            IncomePeriod period = IncomePeriod.DAY;
+            String indexStr = rest;
+            if (rest.startsWith("week_")) {
+                period = IncomePeriod.WEEK;
+                indexStr = rest.substring(5);
+            } else if (rest.startsWith("month_")) {
+                period = IncomePeriod.MONTH;
+                indexStr = rest.substring(6);
+            } else if (rest.startsWith("day_")) {
+                period = IncomePeriod.DAY;
+                indexStr = rest.substring(4);
+            }
+            return getTopIncomePlayer(indexStr, period);
         }
         
         if (identifier.startsWith("top_income_")) {
-            String indexStr = identifier.substring(11);
-            return getTopBalance(indexStr, true, false);
+            String rest = identifier.substring(11);
+            IncomePeriod period = IncomePeriod.DAY;
+            String indexStr = rest;
+            if (rest.startsWith("week_")) {
+                period = IncomePeriod.WEEK;
+                indexStr = rest.substring(5);
+            } else if (rest.startsWith("month_")) {
+                period = IncomePeriod.MONTH;
+                indexStr = rest.substring(6);
+            } else if (rest.startsWith("day_")) {
+                period = IncomePeriod.DAY;
+                indexStr = rest.substring(4);
+            }
+            return getTopIncome(indexStr, period, false);
         }
         
         if (identifier.equals("sum_balance")) {
@@ -183,17 +225,22 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             return String.valueOf(stats.getAccountCount());
         }
         
+        if (identifier.equals("pay_toggle")) {
+            if (player == null) return "true";
+            return String.valueOf(plugin.getPayToggleManager().isPayEnabled(player.getUniqueId()));
+        }
+        
         return null;
     }
     
-    private int getPlayerRank(UUID uuid, boolean incomeMode) {
+    private int getPlayerRank(UUID uuid, IncomePeriod period) {
         LeaderboardManager lm = plugin.getLeaderboardManager();
         if (lm == null) return -1;
         
-        return incomeMode ? lm.getIncomeRank(uuid) : lm.getBalanceRank(uuid);
+        return lm.getIncomeRankByPeriod(period, uuid);
     }
     
-    private String getTopPlayer(String indexStr, boolean incomeMode) {
+    private String getTopPlayer(String indexStr, IncomePeriod period) {
         try {
             int index = Integer.parseInt(indexStr);
             if (index < 1) return "-";
@@ -201,9 +248,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "-";
             
-            List<PlayerAccount> top = incomeMode ? 
-                lm.getIncomeTop(1, index) : 
-                lm.getBalanceTop(1, index);
+            List<PlayerAccount> top = lm.getBalanceTop(1, index);
             
             if (top == null || top.size() < index) return "-";
             return top.get(index - 1).getPlayerName();
@@ -212,7 +257,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         }
     }
     
-    private String getTopBalance(String indexStr, boolean incomeMode, boolean formatted) {
+    private String getTopBalance(String indexStr, IncomePeriod period, boolean formatted) {
         try {
             int index = Integer.parseInt(indexStr);
             if (index < 1) return "0";
@@ -220,20 +265,56 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "0";
             
-            List<PlayerAccount> top = incomeMode ? 
-                lm.getIncomeTop(1, index) : 
-                lm.getBalanceTop(1, index);
+            List<PlayerAccount> top = lm.getBalanceTop(1, index);
             
             if (top == null || top.size() < index) return "0";
             
-            double balance = incomeMode ? 
-                top.get(index - 1).getDailyIncomeDouble() : 
-                top.get(index - 1).getBalanceDouble();
+            double balance = top.get(index - 1).getBalanceDouble();
             
             if (formatted) {
                 return plugin.getCurrencyConfig().format(balance);
             }
             return String.valueOf(balance);
+        } catch (NumberFormatException e) {
+            return "0";
+        }
+    }
+    
+    private String getTopIncomePlayer(String indexStr, IncomePeriod period) {
+        try {
+            int index = Integer.parseInt(indexStr);
+            if (index < 1) return "-";
+            
+            LeaderboardManager lm = plugin.getLeaderboardManager();
+            if (lm == null) return "-";
+            
+            List<PlayerAccount> top = lm.getIncomeTopByPeriod(period, 1, index);
+            
+            if (top == null || top.size() < index) return "-";
+            return top.get(index - 1).getPlayerName();
+        } catch (NumberFormatException e) {
+            return "-";
+        }
+    }
+    
+    private String getTopIncome(String indexStr, IncomePeriod period, boolean formatted) {
+        try {
+            int index = Integer.parseInt(indexStr);
+            if (index < 1) return "0";
+            
+            LeaderboardManager lm = plugin.getLeaderboardManager();
+            if (lm == null) return "0";
+            
+            List<PlayerAccount> top = lm.getIncomeTopByPeriod(period, 1, index);
+            
+            if (top == null || top.size() < index) return "0";
+            
+            double income = top.get(index - 1).getDailyIncomeDouble();
+            
+            if (formatted) {
+                return plugin.getCurrencyConfig().format(income);
+            }
+            return String.valueOf(income);
         } catch (NumberFormatException e) {
             return "0";
         }

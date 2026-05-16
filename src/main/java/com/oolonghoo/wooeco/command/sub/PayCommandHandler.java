@@ -89,6 +89,10 @@ public class PayCommandHandler extends AbstractSubCommandHandler {
                     "symbol", messages.getSymbol(),
                     "amount", formatted
                 ));
+            } else if ("paytoggle.cannot-pay".equals(result.getErrorMessage())) {
+                messages.send(sender, "paytoggle.cannot-pay", Map.of(
+                    "player", targetAccount.getPlayerName()
+                ));
             } else {
                 ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getPrefix() + "&c" + result.getErrorMessage()));
             }

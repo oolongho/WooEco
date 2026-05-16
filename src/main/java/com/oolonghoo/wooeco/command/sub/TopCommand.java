@@ -4,16 +4,15 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
 import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.LeaderboardManager;
+import com.oolonghoo.wooeco.model.IncomePeriod;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 排行榜命令处理器
- */
 public class TopCommand extends AbstractSubCommandHandler {
     
     private final LeaderboardManager leaderboardManager;
@@ -48,30 +47,34 @@ public class TopCommand extends AbstractSubCommandHandler {
             return true;
         }
         
-        int page = 1;
-        boolean incomeMode = false;
-
-        if (args.length > 0) {
-            String type = args[0].toLowerCase();
-            incomeMode = switch (type) {
-                case "income" -> true;
-                case "all" -> false;
-                default -> {
-                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("top.usage")));
-                    yield false;
-                }
-            };
-            
-            if (args.length > 1) {
-                try {
-                    page = Integer.parseInt(args[1]);
-                } catch (NumberFormatException e) {
-                    page = 1;
-                }
+        if (args.length == 0) {
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("top.usage")));
+            return true;
+        }
+        
+        String type = args[0].toLowerCase();
+        boolean incomeMode;
+        IncomePeriod incomePeriod = IncomePeriod.DAY;
+        
+        if (type.equals("all")) {
+            incomeMode = false;
+        } else if (type.equals("income")) {
+            incomeMode = true;
+            if (args.length > 1 && IncomePeriod.isPeriodKeyword(args[1])) {
+                incomePeriod = IncomePeriod.fromString(args[1]);
             }
         } else {
             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("top.usage")));
             return true;
+        }
+        
+        int page = 1;
+        int pageIdx = incomeMode && incomePeriod != IncomePeriod.DAY ? 2 : 1;
+        if (pageIdx < args.length) {
+            try {
+                page = Integer.parseInt(args[pageIdx]);
+            } catch (NumberFormatException ignored) {
+            }
         }
         
         if (page < 1) page = 1;
@@ -82,9 +85,13 @@ public class TopCommand extends AbstractSubCommandHandler {
         String title;
         
         if (incomeMode) {
-            accounts = leaderboardManager.getIncomeTop(page, perPage);
-            totalPages = leaderboardManager.getTotalIncomePages(perPage);
-            title = "日收入排行榜";
+            accounts = leaderboardManager.getIncomeTopByPeriod(incomePeriod, page, perPage);
+            totalPages = leaderboardManager.getTotalIncomePagesByPeriod(incomePeriod, perPage);
+            title = switch (incomePeriod) {
+                case WEEK -> "周收入排行榜";
+                case MONTH -> "月收入排行榜";
+                default -> "日收入排行榜";
+            };
         } else {
             accounts = leaderboardManager.getBalanceTop(page, perPage);
             totalPages = leaderboardManager.getTotalBalancePages(perPage);
@@ -122,9 +129,15 @@ public class TopCommand extends AbstractSubCommandHandler {
     @Override
     public List<String> tabComplete(CommandSender sender, String[] args) {
         if (args.length == 1) {
-            return List.of("all", "income");
+            return Arrays.asList("all", "income");
         }
-        if (args.length == 2) {
+        if (args.length == 2 && args[0].equalsIgnoreCase("income")) {
+            return Arrays.asList("day", "week", "month");
+        }
+        if (args.length == 2 && args[0].equalsIgnoreCase("all")) {
+            return getPageCompletions(10);
+        }
+        if (args.length == 3 && args[0].equalsIgnoreCase("income") && IncomePeriod.isPeriodKeyword(args[1])) {
             return getPageCompletions(10);
         }
         return List.of();

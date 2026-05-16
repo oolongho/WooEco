@@ -48,6 +48,8 @@ public class MainCommand implements CommandExecutor, TabCompleter {
         register(new SetAllCommand(plugin));
         register(new ReloadCommand(plugin));
         register(new DebugCommand(plugin));
+        register(new PayToggleCommand(plugin));
+        register(new MigrateCommand(plugin));
     }
     
     /**

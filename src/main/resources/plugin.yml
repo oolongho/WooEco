@@ -30,6 +30,34 @@ commands:
     permission: wooeco.income
 
 permissions:
+  wooeco.player:
+    description: Player permissions (all basic features)
+    default: true
+    children:
+      wooeco.use: true
+      wooeco.help: true
+      wooeco.balance: true
+      wooeco.pay: true
+      wooeco.income: true
+      wooeco.history: true
+      wooeco.top: true
+      wooeco.paytoggle: true
+  wooeco.admin:
+    description: Admin permissions (all admin features)
+    default: op
+    children:
+      wooeco.player: true
+      wooeco.balance.other: true
+      wooeco.income.other: true
+      wooeco.history.other: true
+      wooeco.paytoggle.other: true
+      wooeco.admin.give: true
+      wooeco.admin.take: true
+      wooeco.admin.set: true
+      wooeco.admin.reload: true
+      wooeco.admin.debug: true
+      wooeco.admin.migrate: true
+      wooeco.bypass.tax: true
   wooeco.use:
     description: Basic usage permission
     default: true
@@ -60,8 +88,11 @@ permissions:
   wooeco.top:
     description: View leaderboard
     default: true
-  wooeco.admin:
-    description: Admin permission
+  wooeco.paytoggle:
+    description: Toggle payment receiving
+    default: true
+  wooeco.paytoggle.other:
+    description: Toggle other players' payment receiving
     default: op
   wooeco.admin.give:
     description: Give money to players
@@ -77,6 +108,9 @@ permissions:
     default: op
   wooeco.admin.debug:
     description: Debug permission
+    default: op
+  wooeco.admin.migrate:
+    description: Migrate data from other economy plugins
     default: op
   wooeco.bypass.tax:
     description: Bypass transaction tax

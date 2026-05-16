@@ -52,6 +52,10 @@ public class TransactionManager {
             return new TransactionResult(false, "接收方账户不存在", BigDecimal.ZERO, BigDecimal.ZERO);
         }
         
+        if (!plugin.getPayToggleManager().isPayEnabled(receiverUuid)) {
+            return new TransactionResult(false, "paytoggle.cannot-pay", BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        
         double minAmount = plugin.getConfig().getDouble("transaction.min-amount", 1);
         double maxAmount = plugin.getConfig().getDouble("transaction.max-amount", 1000000);
         

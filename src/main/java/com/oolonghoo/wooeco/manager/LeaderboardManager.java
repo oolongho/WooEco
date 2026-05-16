@@ -2,9 +2,14 @@ package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
+import com.oolonghoo.wooeco.model.IncomePeriod;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 
 import java.sql.SQLException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -26,11 +31,15 @@ public class LeaderboardManager {
     
     private volatile List<PlayerAccount> balanceTopCache;
     private volatile List<PlayerAccount> incomeTopCache;
+    private volatile List<PlayerAccount> weeklyIncomeTopCache;
+    private volatile List<PlayerAccount> monthlyIncomeTopCache;
     private final int cacheSize;
     private final Object cacheLock = new Object();
     
     private volatile Map<UUID, Integer> balanceRankCache;
     private volatile Map<UUID, Integer> incomeRankCache;
+    private volatile Map<UUID, Integer> weeklyIncomeRankCache;
+    private volatile Map<UUID, Integer> monthlyIncomeRankCache;
     
     private final Set<String> blacklistNames;
     private final Set<UUID> blacklistUUIDs;
@@ -42,8 +51,12 @@ public class LeaderboardManager {
         this.cacheSize = plugin.getConfig().getInt("leaderboard.per-page", 10) * 10;
         this.balanceTopCache = Collections.emptyList();
         this.incomeTopCache = Collections.emptyList();
+        this.weeklyIncomeTopCache = Collections.emptyList();
+        this.monthlyIncomeTopCache = Collections.emptyList();
         this.balanceRankCache = Collections.emptyMap();
         this.incomeRankCache = Collections.emptyMap();
+        this.weeklyIncomeRankCache = Collections.emptyMap();
+        this.monthlyIncomeRankCache = Collections.emptyMap();
         this.blacklistNames = new HashSet<>();
         this.blacklistUUIDs = new HashSet<>();
         loadBlacklist();
@@ -95,8 +108,15 @@ public class LeaderboardManager {
             List<PlayerAccount> rawBalanceTop = playerDAO.getTopBalances(cacheSize * 2);
             List<PlayerAccount> rawIncomeTop = playerDAO.getTopIncomes(cacheSize * 2);
             
+            long weekStart = getStartOfWeekTimestamp();
+            long monthStart = getStartOfMonthTimestamp();
+            List<PlayerAccount> rawWeeklyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(weekStart, cacheSize * 2);
+            List<PlayerAccount> rawMonthlyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(monthStart, cacheSize * 2);
+            
             List<PlayerAccount> filteredBalanceTop = new ArrayList<>();
             List<PlayerAccount> filteredIncomeTop = new ArrayList<>();
+            List<PlayerAccount> filteredWeeklyIncomeTop = new ArrayList<>();
+            List<PlayerAccount> filteredMonthlyIncomeTop = new ArrayList<>();
             
             for (PlayerAccount account : rawBalanceTop) {
                 if (!isBlacklisted(account)) {
@@ -116,8 +136,28 @@ public class LeaderboardManager {
                 }
             }
             
+            for (PlayerAccount account : rawWeeklyIncomeTop) {
+                if (!isBlacklisted(account)) {
+                    filteredWeeklyIncomeTop.add(account);
+                    if (filteredWeeklyIncomeTop.size() >= cacheSize) {
+                        break;
+                    }
+                }
+            }
+            
+            for (PlayerAccount account : rawMonthlyIncomeTop) {
+                if (!isBlacklisted(account)) {
+                    filteredMonthlyIncomeTop.add(account);
+                    if (filteredMonthlyIncomeTop.size() >= cacheSize) {
+                        break;
+                    }
+                }
+            }
+            
             Map<UUID, Integer> newBalanceRankCache = new ConcurrentHashMap<>();
             Map<UUID, Integer> newIncomeRankCache = new ConcurrentHashMap<>();
+            Map<UUID, Integer> newWeeklyIncomeRankCache = new ConcurrentHashMap<>();
+            Map<UUID, Integer> newMonthlyIncomeRankCache = new ConcurrentHashMap<>();
             
             for (int i = 0; i < filteredBalanceTop.size(); i++) {
                 newBalanceRankCache.put(filteredBalanceTop.get(i).getUuid(), i + 1);
@@ -127,11 +167,23 @@ public class LeaderboardManager {
                 newIncomeRankCache.put(filteredIncomeTop.get(i).getUuid(), i + 1);
             }
             
+            for (int i = 0; i < filteredWeeklyIncomeTop.size(); i++) {
+                newWeeklyIncomeRankCache.put(filteredWeeklyIncomeTop.get(i).getUuid(), i + 1);
+            }
+            
+            for (int i = 0; i < filteredMonthlyIncomeTop.size(); i++) {
+                newMonthlyIncomeRankCache.put(filteredMonthlyIncomeTop.get(i).getUuid(), i + 1);
+            }
+            
             synchronized (cacheLock) {
                 this.balanceTopCache = Collections.unmodifiableList(filteredBalanceTop);
                 this.incomeTopCache = Collections.unmodifiableList(filteredIncomeTop);
+                this.weeklyIncomeTopCache = Collections.unmodifiableList(filteredWeeklyIncomeTop);
+                this.monthlyIncomeTopCache = Collections.unmodifiableList(filteredMonthlyIncomeTop);
                 this.balanceRankCache = Collections.unmodifiableMap(newBalanceRankCache);
                 this.incomeRankCache = Collections.unmodifiableMap(newIncomeRankCache);
+                this.weeklyIncomeRankCache = Collections.unmodifiableMap(newWeeklyIncomeRankCache);
+                this.monthlyIncomeRankCache = Collections.unmodifiableMap(newMonthlyIncomeRankCache);
             }
         } catch (SQLException e) {
             plugin.getLogger().severe("刷新排行榜缓存失败: " + e.getMessage());
@@ -162,15 +214,27 @@ public class LeaderboardManager {
     }
     
     public List<PlayerAccount> getIncomeTop(int page, int perPage) {
+        return getIncomeTopByPeriod(IncomePeriod.DAY, page, perPage);
+    }
+    
+    public List<PlayerAccount> getIncomeTopByPeriod(IncomePeriod period, int page, int perPage) {
         List<PlayerAccount> cache;
         synchronized (cacheLock) {
-            cache = incomeTopCache;
+            cache = switch (period) {
+                case WEEK -> weeklyIncomeTopCache;
+                case MONTH -> monthlyIncomeTopCache;
+                default -> incomeTopCache;
+            };
         }
         
         if (cache.isEmpty()) {
             refreshCache();
             synchronized (cacheLock) {
-                cache = incomeTopCache;
+                cache = switch (period) {
+                    case WEEK -> weeklyIncomeTopCache;
+                    case MONTH -> monthlyIncomeTopCache;
+                    default -> incomeTopCache;
+                };
             }
         }
         
@@ -193,9 +257,17 @@ public class LeaderboardManager {
     }
     
     public int getTotalIncomePages(int perPage) {
+        return getTotalIncomePagesByPeriod(IncomePeriod.DAY, perPage);
+    }
+    
+    public int getTotalIncomePagesByPeriod(IncomePeriod period, int perPage) {
         List<PlayerAccount> cache;
         synchronized (cacheLock) {
-            cache = incomeTopCache;
+            cache = switch (period) {
+                case WEEK -> weeklyIncomeTopCache;
+                case MONTH -> monthlyIncomeTopCache;
+                default -> incomeTopCache;
+            };
         }
         return (int) Math.ceil((double) cache.size() / perPage);
     }
@@ -222,11 +294,39 @@ public class LeaderboardManager {
     }
     
     public int getIncomeRank(UUID uuid) {
-        Map<UUID, Integer> cache = incomeRankCache;
+        return getIncomeRankByPeriod(IncomePeriod.DAY, uuid);
+    }
+    
+    public int getIncomeRankByPeriod(IncomePeriod period, UUID uuid) {
+        Map<UUID, Integer> cache = switch (period) {
+            case WEEK -> weeklyIncomeRankCache;
+            case MONTH -> monthlyIncomeRankCache;
+            default -> incomeRankCache;
+        };
         if (cache.isEmpty()) {
             refreshCache();
-            cache = incomeRankCache;
+            cache = switch (period) {
+                case WEEK -> weeklyIncomeRankCache;
+                case MONTH -> monthlyIncomeRankCache;
+                default -> incomeRankCache;
+            };
         }
         return cache.getOrDefault(uuid, -1);
+    }
+    
+    private long getStartOfWeekTimestamp() {
+        return LocalDate.now(ZoneId.systemDefault())
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+    }
+    
+    private long getStartOfMonthTimestamp() {
+        return LocalDate.now(ZoneId.systemDefault())
+                .with(TemporalAdjusters.firstDayOfMonth())
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
     }
 }

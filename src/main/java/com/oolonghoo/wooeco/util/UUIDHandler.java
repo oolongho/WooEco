@@ -25,6 +25,7 @@ public class UUIDHandler {
         return switch (mode) {
             case ONLINE -> getUUIDOnline(playerName);
             case OFFLINE -> getUUIDOffline(playerName);
+            case SEMIONLINE -> getUUIDSemiOnline(playerName);
             case DEFAULT -> getUUIDDefault(playerName);
         };
     }
@@ -97,5 +98,16 @@ public class UUIDHandler {
         UUIDMode mode = plugin.getDatabaseConfig().getUuidMode();
         return mode == UUIDMode.ONLINE || 
                (mode == UUIDMode.DEFAULT && plugin.getServer().getOnlineMode());
+    }
+    
+    private UUID getUUIDSemiOnline(String playerName) {
+        Player onlinePlayer = Bukkit.getPlayerExact(playerName);
+        if (onlinePlayer != null) {
+            return onlinePlayer.getUniqueId();
+        }
+        
+        UUID offlineUuid = getUUIDOffline(playerName);
+        UUID mappedUuid = plugin.getDatabaseManager().getUUIDMappingDAO().getOnlineUUID(offlineUuid);
+        return mappedUuid != null ? mappedUuid : offlineUuid;
     }
 }

@@ -60,7 +60,7 @@ top:
   page-info: "&7Page {page}/{total}"
   format: "&f{rank}. &e{player} &7- {symbol}{balance}"
   no-data: "&cNo data available"
-  usage: "&cUsage: /{command} top <all|income> [page]"
+  usage: "&cUsage: /{command} top <all|income [day/week/month]> [page]"
 
 # Look up player
 look:
@@ -97,7 +97,7 @@ help:
   pay: "&e/{command} pay <player> <amount> &7- Transfer money"
   income: "&e/{command} income [day/week/month] [player] &7- Check income"
   look: "&e/{command} look <player> &7- Check other player's balance"
-  top: "&e/{command} top <all|income> [page] &7- Leaderboard"
+  top: "&e/{command} top <all|income [day/week/month]> [page] &7- Leaderboard"
   history: "&e/{command} history [player] [page] &7- View transaction history"
   admin-give: "&e/{command} give <player> <amount> &7- Give money"
   admin-giveall: "&e/{command} giveall <all|online> <amount> &7- Batch give"
@@ -106,4 +106,31 @@ help:
   admin-set: "&e/{command} set <player> <amount> &7- Set balance"
   admin-setall: "&e/{command} setall <all|online> <amount> &7- Batch set"
   reload: "&e/{command} reload &7- Reload config"
+  paytoggle: "&e/{command} paytoggle [player] &7- Toggle pay receive"
+  migrate: "&e/{command} migrate <vault|xconomy|status> [--dry-run] &7- Data migration"
   footer: "&e===================================="
+
+paytoggle:
+  enabled: "&aYou have enabled payment receiving"
+  disabled: "&cYou have disabled payment receiving, other players cannot pay you"
+  status-enabled: "&aYour payment receiving is enabled"
+  status-disabled: "&cYour payment receiving is disabled, other players cannot pay you"
+  already-enabled: "&aYour payment receiving is already enabled"
+  already-disabled: "&cYour payment receiving is already disabled"
+  target-enabled: "&aPlayer {player}'s payment receiving is now enabled"
+  target-disabled: "&aPlayer {player}'s payment receiving is now disabled"
+  cannot-pay: "&cPlayer {player} has disabled payment receiving"
+
+migration:
+  start: "&aStarting migration from {source}..."
+  progress: "&aMigration progress: {current}/{total} ({percent}%)"
+  completed: "&aMigration completed! Players: {players}, Non-player accounts: {accounts}, Duration: {time}ms"
+  failed: "&cMigration failed: {error}"
+  no-source: "&cNo other Vault economy plugin detected! Make sure the old economy plugin is still running."
+  self-migrate: "&cCannot migrate from self! Set vault.register-as-provider: false in config.yml first"
+  dry-run: "&aDry run completed: will migrate {players} players, {accounts} non-player accounts"
+  already-running: "&cMigration is already running, please wait."
+  vault-provider: "&aDetected Vault economy plugin: {name}"
+  status-none: "&cNo migration has been performed yet."
+  status-result: "&aLast migration: Source={source}, Players={players}, Non-player accounts={accounts}, Duration={time}ms, Success={success}"
+  usage: "&cUsage: /wooeco migrate <vault|xconomy|status> [--dry-run]"

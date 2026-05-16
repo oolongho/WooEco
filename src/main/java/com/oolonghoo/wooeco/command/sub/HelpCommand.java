@@ -41,6 +41,7 @@ public class HelpCommand extends AbstractSubCommandHandler {
         ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.income", Map.of("command", "eco"))));
         ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.top", Map.of("command", "eco"))));
         ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.history", Map.of("command", "eco"))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.paytoggle", Map.of("command", "eco"))));
         
         if (sender.hasPermission("wooeco.admin")) {
             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-give", Map.of("command", "eco"))));
@@ -50,6 +51,7 @@ public class HelpCommand extends AbstractSubCommandHandler {
             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-set", Map.of("command", "eco"))));
             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-setall", Map.of("command", "eco"))));
             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.reload", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.migrate", Map.of("command", "eco"))));
         }
         
         ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.footer")));
