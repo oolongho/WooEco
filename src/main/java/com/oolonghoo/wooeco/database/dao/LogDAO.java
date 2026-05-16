@@ -122,4 +122,23 @@ public class LogDAO {
             dbManager.getWriteLock().unlock();
         }
     }
+
+    public BigDecimal getIncomeInPeriod(UUID uuid, long fromTimestamp) throws SQLException {
+        String sql = "SELECT COALESCE(SUM(amount), 0) FROM " + tablePrefix + "logs " +
+                     "WHERE uuid = ? AND reason = 'PAYMENT_RECEIVED' AND timestamp >= ?";
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uuid.toString());
+            stmt.setLong(2, fromTimestamp);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                BigDecimal total = rs.getBigDecimal(1);
+                return total != null ? total : BigDecimal.ZERO;
+            }
+        } finally {
+            dbManager.getReadLock().unlock();
+        }
+        return BigDecimal.ZERO;
+    }
 }

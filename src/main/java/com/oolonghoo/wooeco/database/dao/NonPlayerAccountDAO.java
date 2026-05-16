@@ -51,11 +51,13 @@ public class NonPlayerAccountDAO {
     public void createAccount(NonPlayerAccount account) throws SQLException {
         String sql;
         if (databaseManager.isMySQL()) {
-            sql = "INSERT IGNORE INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
+            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) AS new_val " +
+                  "ON DUPLICATE KEY UPDATE balance = new_val.balance, updated_at = new_val.updated_at";
         } else {
-            sql = "INSERT OR IGNORE INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
+            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
+                  "ON CONFLICT(account_name) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at";
         }
         
         databaseManager.getWriteLock().lock();

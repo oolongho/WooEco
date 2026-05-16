@@ -101,6 +101,31 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             return String.valueOf(economy.getDailyIncome(player.getUniqueId()));
         }
         
+        if (identifier.equals("daily_income_formatted")) {
+            if (player == null) return "0";
+            return plugin.getCurrencyConfig().format(economy.getDailyIncomeDecimal(player.getUniqueId()));
+        }
+        
+        if (identifier.equals("weekly_income")) {
+            if (player == null) return "0";
+            return economy.getWeeklyIncomeDecimal(player.getUniqueId()).toString();
+        }
+        
+        if (identifier.equals("weekly_income_formatted")) {
+            if (player == null) return "0";
+            return plugin.getCurrencyConfig().format(economy.getWeeklyIncomeDecimal(player.getUniqueId()));
+        }
+        
+        if (identifier.equals("monthly_income")) {
+            if (player == null) return "0";
+            return economy.getMonthlyIncomeDecimal(player.getUniqueId()).toString();
+        }
+        
+        if (identifier.equals("monthly_income_formatted")) {
+            if (player == null) return "0";
+            return plugin.getCurrencyConfig().format(economy.getMonthlyIncomeDecimal(player.getUniqueId()));
+        }
+        
         if (identifier.equals("top_rank")) {
             if (player == null) return "-";
             return String.valueOf(getPlayerRank(player.getUniqueId(), false));

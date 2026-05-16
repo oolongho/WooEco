@@ -2,6 +2,10 @@ package com.oolonghoo.wooeco.manager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -279,6 +283,49 @@ public class EconomyManager {
     public BigDecimal getDailyIncomeDecimal(UUID uuid) {
         PlayerAccount account = playerDataManager.getAccount(uuid);
         return account != null ? account.getDailyIncome() : BigDecimal.ZERO;
+    }
+    
+    public BigDecimal getWeeklyIncomeDecimal(UUID uuid) {
+        try {
+            long fromTimestamp = getStartOfWeekTimestamp();
+            return plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+        } catch (SQLException e) {
+            plugin.getLogger().warning("查询周收入失败: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+    
+    public BigDecimal getMonthlyIncomeDecimal(UUID uuid) {
+        try {
+            long fromTimestamp = getStartOfMonthTimestamp();
+            return plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+        } catch (SQLException e) {
+            plugin.getLogger().warning("查询月收入失败: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+    
+    private long getStartOfDayTimestamp() {
+        return LocalDate.now(ZoneId.systemDefault())
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+    }
+    
+    private long getStartOfWeekTimestamp() {
+        return LocalDate.now(ZoneId.systemDefault())
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+    }
+    
+    private long getStartOfMonthTimestamp() {
+        return LocalDate.now(ZoneId.systemDefault())
+                .with(TemporalAdjusters.firstDayOfMonth())
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
     }
     
     public BatchResult depositAll(BigDecimal amount, boolean onlineOnly, String operator, String operatorName) {

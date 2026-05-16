@@ -32,6 +32,11 @@ transaction:
 income:
   today: "&aYour today's income: {symbol}{income}"
   today-other: "&aPlayer {player}'s today's income: {symbol}{income}"
+  week: "&aYour this week's income: {symbol}{income}"
+  week-other: "&aPlayer {player}'s this week's income: {symbol}{income}"
+  month: "&aYour this month's income: {symbol}{income}"
+  month-other: "&aPlayer {player}'s this month's income: {symbol}{income}"
+  invalid-period: "&cInvalid period! Options: day, week, month"
 
 # Admin commands
 admin:
@@ -90,7 +95,7 @@ help:
   header: "&e========== &6WooEco Help &e=========="
   balance: "&e/{command} &7- Check balance"
   pay: "&e/{command} pay <player> <amount> &7- Transfer money"
-  income: "&e/{command} income &7- Check today's income"
+  income: "&e/{command} income [day/week/month] [player] &7- Check income"
   look: "&e/{command} look <player> &7- Check other player's balance"
   top: "&e/{command} top <all|income> [page] &7- Leaderboard"
   history: "&e/{command} history [player] [page] &7- View transaction history"

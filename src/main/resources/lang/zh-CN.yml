@@ -32,6 +32,11 @@ transaction:
 income:
   today: "&a你今日的收入: {symbol}{income}"
   today-other: "&a玩家 {player} 今日的收入: {symbol}{income}"
+  week: "&a你本周的收入: {symbol}{income}"
+  week-other: "&a玩家 {player} 本周的收入: {symbol}{income}"
+  month: "&a你本月的收入: {symbol}{income}"
+  month-other: "&a玩家 {player} 本月的收入: {symbol}{income}"
+  invalid-period: "&c无效的时间段！可选: day, week, month"
 
 # 管理命令
 admin:
@@ -90,7 +95,7 @@ help:
   header: "&e========== &6WooEco 帮助 &e=========="
   balance: "&e/{command} &7- 查看余额"
   pay: "&e/{command} pay <玩家> <金额> &7- 转账"
-  income: "&e/{command} income &7- 查看今日收入"
+  income: "&e/{command} income [day/week/month] [玩家] &7- 查看收入"
   look: "&e/{command} look <玩家> &7- 查看其他玩家余额"
   top: "&e/{command} top <all|income> [页码] &7- 排行榜"
   history: "&e/{command} history [玩家] [页码] &7- 查看交易历史"
