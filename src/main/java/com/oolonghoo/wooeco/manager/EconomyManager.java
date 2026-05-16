@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -234,7 +235,9 @@ public class EconomyManager {
             accounts = playerDataManager.getOnlineAccounts();
             onlineUuids = new java.util.ArrayList<>();
             for (PlayerAccount account : accounts) {
-                onlineUuids.add(account.getUuid());
+                if (account == null) continue;
+                UUID accountUuid = account.getUuid();
+                if (accountUuid != null) onlineUuids.add(accountUuid);
             }
         } else {
             accounts = playerDataManager.getAllAccounts();
@@ -313,7 +316,9 @@ public class EconomyManager {
             accounts = playerDataManager.getOnlineAccounts();
             onlineUuids = new java.util.ArrayList<>();
             for (PlayerAccount account : accounts) {
-                onlineUuids.add(account.getUuid());
+                if (account == null) continue;
+                UUID accountUuid = account.getUuid();
+                if (accountUuid != null) onlineUuids.add(accountUuid);
             }
         } else {
             accounts = playerDataManager.getAllAccounts();
@@ -395,7 +400,9 @@ public class EconomyManager {
             accounts = playerDataManager.getOnlineAccounts();
             onlineUuids = new java.util.ArrayList<>();
             for (PlayerAccount account : accounts) {
-                onlineUuids.add(account.getUuid());
+                if (account == null) continue;
+                UUID accountUuid = account.getUuid();
+                if (accountUuid != null) onlineUuids.add(accountUuid);
             }
         } else {
             accounts = playerDataManager.getAllAccounts();
@@ -470,13 +477,19 @@ public class EconomyManager {
         runBatchAsync(() -> {
             Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
             List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
-            if (onlineOnly && accounts != null) {
+            if (onlineOnly && accounts != null && !accounts.isEmpty()) {
                 for (PlayerAccount a : accounts) {
-                    onlineUuids.add(a.getUuid());
+                    if (a == null) continue;
+                    UUID accountUuid = a.getUuid();
+                    if (accountUuid == null) continue;
+                    onlineUuids.add(Objects.requireNonNull(accountUuid));
                 }
             }
             Map<UUID, BigDecimal> oldBalances = new HashMap<>();
             Map<UUID, String> nameMap = new HashMap<>();
+            if (accounts == null || accounts.isEmpty()) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
+            }
             for (PlayerAccount a : accounts) {
                 oldBalances.put(a.getUuid(), a.getBalance());
                 nameMap.put(a.getUuid(), a.getPlayerName());
@@ -490,7 +503,7 @@ public class EconomyManager {
                     .depositAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
                 return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
             } catch (SQLException e) {
-                plugin.getLogger().severe("批量存款失败：" + e.getMessage());
+                plugin.getLogger().severe(String.format("批量存款失败：%s", e.getMessage()));
                 return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "DEPOSIT_ALL", operator, operatorName);
             }
         }, (ctx) -> {
@@ -512,13 +525,19 @@ public class EconomyManager {
         runBatchAsync(() -> {
             Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
             List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
-            if (onlineOnly && accounts != null) {
+            if (onlineOnly && accounts != null && !accounts.isEmpty()) {
                 for (PlayerAccount a : accounts) {
-                    onlineUuids.add(a.getUuid());
+                    if (a == null) continue;
+                    UUID accountUuid = a.getUuid();
+                    if (accountUuid == null) continue;
+                    onlineUuids.add(Objects.requireNonNull(accountUuid));
                 }
             }
             Map<UUID, BigDecimal> oldBalances = new HashMap<>();
             Map<UUID, String> nameMap = new HashMap<>();
+            if (accounts == null || accounts.isEmpty()) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
+            }
             for (PlayerAccount a : accounts) {
                 oldBalances.put(a.getUuid(), a.getBalance());
                 nameMap.put(a.getUuid(), a.getPlayerName());
@@ -532,7 +551,7 @@ public class EconomyManager {
                     .withdrawAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
                 return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
             } catch (SQLException e) {
-                plugin.getLogger().severe("批量扣款失败：" + e.getMessage());
+                plugin.getLogger().severe(String.format("批量扣款失败：%s", e.getMessage()));
                 return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "WITHDRAW_ALL", operator, operatorName);
             }
         }, (ctx) -> {
@@ -556,13 +575,19 @@ public class EconomyManager {
         runBatchAsync(() -> {
             Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
             List<UUID> onlineUuids = onlineOnly ? new ArrayList<>() : null;
-            if (onlineOnly && accounts != null) {
+            if (onlineOnly && accounts != null && !accounts.isEmpty()) {
                 for (PlayerAccount a : accounts) {
-                    onlineUuids.add(a.getUuid());
+                    if (a == null) continue;
+                    UUID accountUuid = a.getUuid();
+                    if (accountUuid == null) continue;
+                    onlineUuids.add(Objects.requireNonNull(accountUuid));
                 }
             }
             Map<UUID, BigDecimal> oldBalances = new HashMap<>();
             Map<UUID, String> nameMap = new HashMap<>();
+            if (accounts == null || accounts.isEmpty()) {
+                return new BatchContext(new BatchResult(0, 0, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
+            }
             for (PlayerAccount a : accounts) {
                 oldBalances.put(a.getUuid(), a.getBalance());
                 nameMap.put(a.getUuid(), a.getPlayerName());
@@ -576,7 +601,7 @@ public class EconomyManager {
                     .setAllBatch(amount.doubleValue(), onlineOnly, onlineUuids);
                 return new BatchContext(new BatchResult(updated, totalAccounts - updated, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
             } catch (SQLException e) {
-                plugin.getLogger().severe("批量设置余额失败：" + e.getMessage());
+                plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
                 return new BatchContext(new BatchResult(0, totalAccounts, amount), oldBalances, nameMap, amount, "SET_ALL", operator, operatorName);
             }
         }, (ctx) -> {

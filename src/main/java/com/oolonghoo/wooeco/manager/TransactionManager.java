@@ -85,6 +85,14 @@ public class TransactionManager {
         tax = BigDecimal.valueOf(event.getTax());
         totalCost = amount.add(tax);
         
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            return new TransactionResult(false, "转账金额必须大于0", BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        
+        if (!economyManager.has(senderUuid, totalCost)) {
+            return new TransactionResult(false, "余额不足", BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        
         EconomyManager.EconomyResult withdrawResult = economyManager.withdraw(
             senderUuid, totalCost, BalanceChangeReason.PAYMENT, null, null
         );

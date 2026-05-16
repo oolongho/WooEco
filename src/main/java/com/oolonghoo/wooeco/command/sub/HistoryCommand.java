@@ -2,10 +2,12 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.database.dao.TransactionDAO;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.model.Transaction;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -125,7 +127,7 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                 
                 if (currentPage > totalPages) {
                     plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        sender.sendMessage(messages.getWithPrefix("history.no-data"));
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
                     });
                     return;
                 }
@@ -135,10 +137,10 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                 final int finalTotalPages = totalPages;
                 
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    sender.sendMessage(messages.get("history.header", Map.of("player", name)));
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
                     
                     if (transactions.isEmpty()) {
-                        sender.sendMessage(messages.get("history.no-data"));
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
                     } else {
                         for (Transaction tx : transactions) {
                             boolean isSender = tx.getSenderUuid().equals(uuid);
@@ -148,28 +150,28 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                             String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmount());
                             String time = formatTime(tx.getTimestamp());
                             
-                            sender.sendMessage(messages.get("history.format", Map.of(
+                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
                                 "direction", direction,
                                 "action", action,
                                 "player", otherName,
                                 "symbol", messages.getSymbol(),
                                 "amount", formattedAmount,
                                 "time", time
-                            )));
+                            ))));
                         }
                     }
                     
-                    sender.sendMessage(messages.get("history.page-info", Map.of(
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
                         "page", String.valueOf(currentPage),
                         "total", String.valueOf(finalTotalPages),
                         "count", String.valueOf(finalTotal)
-                    )));
-                    sender.sendMessage(messages.get("history.footer"));
+                    ))));
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
                 });
             } catch (SQLException e) {
-                plugin.getLogger().severe("查询交易历史失败: " + e.getMessage());
+                plugin.getLogger().severe(String.format("查询交易历史失败：%s", e.getMessage()));
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    sender.sendMessage(messages.getWithPrefix("history.error"));
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
                 });
             }
         });

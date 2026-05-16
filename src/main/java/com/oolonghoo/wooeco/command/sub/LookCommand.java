@@ -2,8 +2,10 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
@@ -63,10 +65,10 @@ public class LookCommand extends AbstractSubCommandHandler {
         }
         
         String formatted = plugin.getCurrencyConfig().format(account.getBalanceDouble());
-        sender.sendMessage(messages.getWithPrefix("currency.balance", Map.of(
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("currency.balance", Map.of(
             "symbol", messages.getSymbol(),
             "balance", formatted
-        )));
+        ))));
         
         return true;
     }
@@ -83,11 +85,11 @@ public class LookCommand extends AbstractSubCommandHandler {
         }
         
         String formatted = plugin.getCurrencyConfig().format(account.getBalanceDouble());
-        sender.sendMessage(messages.getWithPrefix("currency.balance-other", Map.of(
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("currency.balance-other", Map.of(
             "player", account.getPlayerName(),
             "symbol", messages.getSymbol(),
             "balance", formatted
-        )));
+        ))));
         
         return true;
     }

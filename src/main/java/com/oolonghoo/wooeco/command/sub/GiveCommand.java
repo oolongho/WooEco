@@ -3,15 +3,19 @@ package com.oolonghoo.wooeco.command.sub;
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.EconomyManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Map;
+import java.util.Optional;
+
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 管理员发放货币命令处理器
@@ -73,7 +77,7 @@ public class GiveCommand extends AbstractSubCommandHandler {
         }
         
         String operator = sender instanceof Player ? ((Player) sender).getUniqueId().toString() : "CONSOLE";
-        String operatorName = sender.getName();
+        String operatorName = Optional.ofNullable(sender.getName()).orElse("CONSOLE");
         
         EconomyManager.EconomyResult result = economyManager.deposit(
             account.getUuid(), BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, operator, operatorName
@@ -87,7 +91,7 @@ public class GiveCommand extends AbstractSubCommandHandler {
                 "amount", formatted
             ));
         } else {
-            sender.sendMessage(messages.getPrefix() + "§c" + result.getErrorMessage());
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getPrefix() + "&c" + result.getErrorMessage()));
         }
         
         return true;

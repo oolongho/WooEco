@@ -1,8 +1,10 @@
 package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.database.dao.OfflineTransferTipDAO;
 import com.oolonghoo.wooeco.model.OfflineTransferTip;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
@@ -10,10 +12,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * 离线交易提示管理器
- * 
- */
 public class OfflineTransferManager {
     
     private final WooEco plugin;
@@ -37,7 +35,7 @@ public class OfflineTransferManager {
             try {
                 tipDAO.saveTip(tip);
             } catch (SQLException e) {
-                plugin.getLogger().warning("保存离线交易提示失败: " + e.getMessage());
+                plugin.getLogger().warning(String.format("保存离线交易提示失败：%s", e.getMessage()));
             }
         });
     }
@@ -59,7 +57,7 @@ public class OfflineTransferManager {
                     tipDAO.markAsNotified(uuid);
                 }
             } catch (SQLException e) {
-                plugin.getLogger().warning("检查离线交易提示失败: " + e.getMessage());
+                plugin.getLogger().warning(String.format("检查离线交易提示失败：%s", e.getMessage()));
             }
         });
     }
@@ -68,14 +66,14 @@ public class OfflineTransferManager {
         String message = plugin.getMessageManager().getWithPrefix("offline-transfer.tips", Map.of(
             "count", String.valueOf(count)
         ));
-        player.sendMessage(message);
+        ((Audience) player).sendMessage(MessageManager.deserialize(message));
     }
     
     public List<OfflineTransferTip> getUnnotifiedTips(UUID uuid) {
         try {
             return tipDAO.getUnnotifiedTips(uuid);
         } catch (SQLException e) {
-            plugin.getLogger().warning("获取离线交易提示失败: " + e.getMessage());
+            plugin.getLogger().warning(String.format("获取离线交易提示失败：%s", e.getMessage()));
             return List.of();
         }
     }
@@ -88,7 +86,7 @@ public class OfflineTransferManager {
             try {
                 tipDAO.cleanupOldTips(retentionDays);
             } catch (SQLException e) {
-                plugin.getLogger().warning("清理离线交易提示失败: " + e.getMessage());
+                plugin.getLogger().warning(String.format("清理离线交易提示失败：%s", e.getMessage()));
             }
         });
     }

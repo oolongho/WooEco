@@ -1,8 +1,10 @@
 package com.oolonghoo.wooeco.util;
 
 import com.oolonghoo.wooeco.WooEco;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -12,12 +14,6 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * 调试管理器
- * 提供详细的调试日志和诊断功能
- * 
- */
-@SuppressWarnings("deprecation")
 public class DebugManager {
     
     private final WooEco plugin;
@@ -45,10 +41,10 @@ public class DebugManager {
     
     public DebugManager(WooEco plugin) {
         this.plugin = plugin;
-        loadConfig();
+        initConfig();
     }
     
-    public void loadConfig() {
+    private void initConfig() {
         this.enabled = plugin.getConfig().getBoolean("debug.enabled", false);
         this.logToFile = plugin.getConfig().getBoolean("debug.log-to-file", true);
         this.logToConsole = plugin.getConfig().getBoolean("debug.log-to-console", true);
@@ -64,6 +60,11 @@ public class DebugManager {
         if (enabled && logToFile) {
             initLogFile();
         }
+    }
+    
+    public void loadConfig() {
+        shutdown();
+        initConfig();
     }
     
     private void initLogFile() {
@@ -84,7 +85,7 @@ public class DebugManager {
             logWriter = new PrintWriter(new FileWriter(debugLogFile, true), true);
             log("DebugManager", "DEBUG", "调试日志系统初始化完成");
         } catch (IOException e) {
-            plugin.getLogger().warning("无法创建调试日志文件: " + e.getMessage());
+            plugin.getLogger().warning(String.format("无法创建调试日志文件：%s", e.getMessage()));
             logToFile = false;
         }
     }
@@ -99,10 +100,12 @@ public class DebugManager {
             timestamp, threadName, category, level, message);
         
         if (logToConsole) {
-            String consoleMessage = ChatColor.GRAY + "[WooEco-Debug] " + 
-                ChatColor.YELLOW + "[" + category + "] " + 
-                ChatColor.WHITE + message;
-            Bukkit.getConsoleSender().sendMessage(consoleMessage);
+            ((Audience) Bukkit.getConsoleSender()).sendMessage(
+                Component.text("[WooEco-Debug] ", NamedTextColor.DARK_GRAY)
+                    .append(Component.text("[", NamedTextColor.GRAY))
+                    .append(Component.text(category, NamedTextColor.YELLOW))
+                    .append(Component.text("] ", NamedTextColor.GRAY))
+                    .append(Component.text(message, NamedTextColor.WHITE)));
         }
         
         if (logToFile && logWriter != null) {
@@ -110,12 +113,14 @@ public class DebugManager {
         }
         
         if (logToOnlineAdmins) {
-            String adminMessage = ChatColor.DARK_GRAY + "[WooEco-Debug] " + 
-                ChatColor.YELLOW + "[" + category + "] " + 
-                ChatColor.GRAY + message;
+            Component adminMsg = Component.text("[WooEco-Debug] ", NamedTextColor.DARK_GRAY)
+                .append(Component.text("[", NamedTextColor.GRAY))
+                .append(Component.text(category, NamedTextColor.YELLOW))
+                .append(Component.text("] ", NamedTextColor.GRAY))
+                .append(Component.text(message, NamedTextColor.DARK_GRAY));
             for (Player player : Bukkit.getOnlinePlayers()) {
                 if (player.hasPermission("wooeco.admin.debug")) {
-                    player.sendMessage(adminMessage);
+                    ((Audience) player).sendMessage(adminMsg);
                 }
             }
         }
@@ -259,71 +264,75 @@ public class DebugManager {
     }
     
     public void dumpState(CommandSender sender) {
-        sender.sendMessage(ChatColor.GOLD + "========== WooEco 状态诊断 ==========");
+        Audience audience = (Audience) sender;
         
-        sender.sendMessage(ChatColor.YELLOW + "基本信息:");
-        sender.sendMessage(ChatColor.GRAY + "  - 版本: " + ChatColor.WHITE + plugin.getDescription().getVersion());
-        sender.sendMessage(ChatColor.GRAY + "  - 数据库类型: " + ChatColor.WHITE + plugin.getDatabaseConfig().getType());
-        sender.sendMessage(ChatColor.GRAY + "  - UUID模式: " + ChatColor.WHITE + plugin.getDatabaseConfig().getUuidMode());
-        sender.sendMessage(ChatColor.GRAY + "  - 调试模式: " + ChatColor.WHITE + (enabled ? "启用" : "禁用"));
+        audience.sendMessage(Component.text("========== WooEco 状态诊断 ==========", NamedTextColor.GOLD));
         
-        sender.sendMessage(ChatColor.YELLOW + "缓存状态:");
-        sender.sendMessage(ChatColor.GRAY + "  - 在线玩家缓存: " + ChatColor.WHITE + plugin.getPlayerDataManager().getOnlineAccounts().size());
-        sender.sendMessage(ChatColor.GRAY + "  - 总账户数: " + ChatColor.WHITE + plugin.getPlayerDataManager().getAccountCount());
-        sender.sendMessage(ChatColor.GRAY + "  - 缓存命中: " + ChatColor.GREEN + getCounter("cache_hit"));
-        sender.sendMessage(ChatColor.GRAY + "  - 缓存未命中: " + ChatColor.RED + getCounter("cache_miss"));
+        audience.sendMessage(Component.text("基本信息:", NamedTextColor.YELLOW));
+        audience.sendMessage(Component.text("  - 版本: ", NamedTextColor.GRAY).append(Component.text(plugin.getDescription().getVersion(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 数据库类型: ", NamedTextColor.GRAY).append(Component.text(plugin.getDatabaseConfig().getType().name(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - UUID模式: ", NamedTextColor.GRAY).append(Component.text(plugin.getDatabaseConfig().getUuidMode().name(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 调试模式: ", NamedTextColor.GRAY).append(Component.text(enabled ? "启用" : "禁用", NamedTextColor.WHITE)));
+        
+        audience.sendMessage(Component.text("缓存状态:", NamedTextColor.YELLOW));
+        audience.sendMessage(Component.text("  - 在线玩家缓存: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(plugin.getPlayerDataManager().getOnlineAccounts().size()), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 总账户数: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(plugin.getPlayerDataManager().getAccountCount()), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 缓存命中: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(getCounter("cache_hit")), NamedTextColor.GREEN)));
+        audience.sendMessage(Component.text("  - 缓存未命中: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(getCounter("cache_miss")), NamedTextColor.RED)));
         if (getCounter("cache_hit") + getCounter("cache_miss") > 0) {
             double hitRate = (double) getCounter("cache_hit") / (getCounter("cache_hit") + getCounter("cache_miss")) * 100;
-            sender.sendMessage(ChatColor.GRAY + "  - 命中率: " + ChatColor.WHITE + String.format("%.2f%%", hitRate));
+            audience.sendMessage(Component.text("  - 命中率: ", NamedTextColor.GRAY).append(Component.text(String.format("%.2f%%", hitRate), NamedTextColor.WHITE)));
         }
         
-        sender.sendMessage(ChatColor.YELLOW + "同步状态:");
+        audience.sendMessage(Component.text("同步状态:", NamedTextColor.YELLOW));
         boolean syncEnabled = plugin.getDatabaseConfig().isSyncEnabled();
-        sender.sendMessage(ChatColor.GRAY + "  - 跨服同步: " + ChatColor.WHITE + (syncEnabled ? "启用" : "禁用"));
+        audience.sendMessage(Component.text("  - 跨服同步: ", NamedTextColor.GRAY).append(Component.text(syncEnabled ? "启用" : "禁用", NamedTextColor.WHITE)));
         if (syncEnabled && plugin.getRedisSyncManager() != null) {
-            sender.sendMessage(ChatColor.GRAY + "  - Redis连接: " + ChatColor.WHITE + 
-                (plugin.getRedisSyncManager().isRunning() ? "正常" : "断开"));
-            sender.sendMessage(ChatColor.GRAY + "  - 服务器ID: " + ChatColor.WHITE + plugin.getDatabaseConfig().getServerId());
+            audience.sendMessage(Component.text("  - Redis连接: ", NamedTextColor.GRAY)
+                .append(Component.text(plugin.getRedisSyncManager().isRunning() ? "正常" : "断开", NamedTextColor.WHITE)));
+            audience.sendMessage(Component.text("  - 服务器ID: ", NamedTextColor.GRAY)
+                .append(Component.text(plugin.getDatabaseConfig().getServerId(), NamedTextColor.WHITE)));
         }
         
-        sender.sendMessage(ChatColor.YELLOW + "货币配置:");
-        sender.sendMessage(ChatColor.GRAY + "  - 货币名称: " + ChatColor.WHITE + plugin.getCurrencyConfig().getSingularName());
-        sender.sendMessage(ChatColor.GRAY + "  - 整数余额: " + ChatColor.WHITE + plugin.getCurrencyConfig().isIntegerBalance());
-        sender.sendMessage(ChatColor.GRAY + "  - 小数位数: " + ChatColor.WHITE + plugin.getCurrencyConfig().getDecimalPlaces());
-        sender.sendMessage(ChatColor.GRAY + "  - 最大余额: " + ChatColor.WHITE + plugin.getCurrencyConfig().getMaxBalance());
+        audience.sendMessage(Component.text("货币配置:", NamedTextColor.YELLOW));
+        audience.sendMessage(Component.text("  - 货币名称: ", NamedTextColor.GRAY).append(Component.text(plugin.getCurrencyConfig().getSingularName(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 整数余额: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(plugin.getCurrencyConfig().isIntegerBalance()), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 小数位数: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(plugin.getCurrencyConfig().getDecimalPlaces()), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 最大余额: ", NamedTextColor.GRAY).append(Component.text(String.valueOf(plugin.getCurrencyConfig().getMaxBalance()), NamedTextColor.WHITE)));
         
-        sender.sendMessage(ChatColor.YELLOW + "非玩家账户:");
+        audience.sendMessage(Component.text("非玩家账户:", NamedTextColor.YELLOW));
         boolean npEnabled = plugin.getNonPlayerAccountManager().isEnabled();
-        sender.sendMessage(ChatColor.GRAY + "  - 启用状态: " + ChatColor.WHITE + (npEnabled ? "启用" : "禁用"));
+        audience.sendMessage(Component.text("  - 启用状态: ", NamedTextColor.GRAY).append(Component.text(npEnabled ? "启用" : "禁用", NamedTextColor.WHITE)));
         if (npEnabled) {
-            sender.sendMessage(ChatColor.GRAY + "  - 白名单: " + ChatColor.WHITE + 
-                (plugin.getNonPlayerAccountManager().isWhitelistEnabled() ? "启用" : "禁用"));
+            audience.sendMessage(Component.text("  - 白名单: ", NamedTextColor.GRAY)
+                .append(Component.text(plugin.getNonPlayerAccountManager().isWhitelistEnabled() ? "启用" : "禁用", NamedTextColor.WHITE)));
         }
         
-        sender.sendMessage(ChatColor.GOLD + "====================================");
+        audience.sendMessage(Component.text("====================================", NamedTextColor.GOLD));
     }
     
     public void dumpPlayerState(CommandSender sender, UUID uuid) {
+        Audience audience = (Audience) sender;
         var account = plugin.getPlayerDataManager().getAccount(uuid);
         if (account == null) {
-            sender.sendMessage(ChatColor.RED + "玩家账户不存在: " + uuid);
+            audience.sendMessage(Component.text("玩家账户不存在: " + uuid, NamedTextColor.RED));
             return;
         }
         
-        sender.sendMessage(ChatColor.GOLD + "========== 玩家账户诊断 ==========");
-        sender.sendMessage(ChatColor.YELLOW + "基本信息:");
-        sender.sendMessage(ChatColor.GRAY + "  - UUID: " + ChatColor.WHITE + account.getUuid());
-        sender.sendMessage(ChatColor.GRAY + "  - 名称: " + ChatColor.WHITE + account.getPlayerName());
-        sender.sendMessage(ChatColor.GRAY + "  - 创建时间: " + ChatColor.WHITE + new Date(account.getCreatedAt()));
-        sender.sendMessage(ChatColor.GRAY + "  - 更新时间: " + ChatColor.WHITE + new Date(account.getUpdatedAt()));
-        sender.sendMessage(ChatColor.GRAY + "  - 数据变更: " + ChatColor.WHITE + (account.isDirty() ? "是" : "否"));
+        audience.sendMessage(Component.text("========== 玩家账户诊断 ==========", NamedTextColor.GOLD));
+        audience.sendMessage(Component.text("基本信息:", NamedTextColor.YELLOW));
+        audience.sendMessage(Component.text("  - UUID: ", NamedTextColor.GRAY).append(Component.text(account.getUuid().toString(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 名称: ", NamedTextColor.GRAY).append(Component.text(account.getPlayerName(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 创建时间: ", NamedTextColor.GRAY).append(Component.text(new Date(account.getCreatedAt()).toString(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 更新时间: ", NamedTextColor.GRAY).append(Component.text(new Date(account.getUpdatedAt()).toString(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 数据变更: ", NamedTextColor.GRAY).append(Component.text(account.isDirty() ? "是" : "否", NamedTextColor.WHITE)));
         
-        sender.sendMessage(ChatColor.YELLOW + "余额信息:");
-        sender.sendMessage(ChatColor.GRAY + "  - 当前余额: " + ChatColor.WHITE + account.getBalance());
-        sender.sendMessage(ChatColor.GRAY + "  - 今日收入: " + ChatColor.WHITE + account.getDailyIncome());
-        sender.sendMessage(ChatColor.GRAY + "  - 上次重置: " + ChatColor.WHITE + new Date(account.getLastIncomeReset()));
+        audience.sendMessage(Component.text("余额信息:", NamedTextColor.YELLOW));
+        audience.sendMessage(Component.text("  - 当前余额: ", NamedTextColor.GRAY).append(Component.text(account.getBalance().toString(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 今日收入: ", NamedTextColor.GRAY).append(Component.text(account.getDailyIncome().toString(), NamedTextColor.WHITE)));
+        audience.sendMessage(Component.text("  - 上次重置: ", NamedTextColor.GRAY).append(Component.text(new Date(account.getLastIncomeReset()).toString(), NamedTextColor.WHITE)));
         
-        sender.sendMessage(ChatColor.GOLD + "====================================");
+        audience.sendMessage(Component.text("====================================", NamedTextColor.GOLD));
     }
     
     public void setEnabled(boolean enabled) {

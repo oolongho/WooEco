@@ -44,6 +44,12 @@ public class BalanceChangeEvent extends Event implements Cancellable {
     }
     
     public void setNewBalance(double newBalance) {
+        if (Double.isNaN(newBalance) || Double.isInfinite(newBalance)) {
+            throw new IllegalArgumentException("余额不能为NaN或Infinity");
+        }
+        if (newBalance < 0) {
+            throw new IllegalArgumentException("余额不能为负数");
+        }
         this.newBalance = newBalance;
     }
     

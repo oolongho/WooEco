@@ -76,6 +76,9 @@ public class PlayerDataManager {
                 name = uuid.toString().substring(0, 8);
             }
             account = createNewAccount(uuid, name);
+            if (account == null) {
+                return null;
+            }
         }
         
         onlineCache.put(uuid, account);
@@ -112,6 +115,9 @@ public class PlayerDataManager {
                 name = uuid.toString().substring(0, 8);
             }
             account = createNewAccount(uuid, name);
+            if (account == null) {
+                return null;
+            }
         }
         
         long elapsed = System.nanoTime() - startTime;
@@ -227,11 +233,11 @@ public class PlayerDataManager {
         try {
             playerDAO.createAccount(account);
             plugin.getLogger().info(String.format("为新玩家创建账户：%s", playerName));
+            return account;
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("创建玩家账户失败：%s", e.getMessage()));
+            return null;
         }
-        
-        return account;
     }
     
     public void loadPlayer(UUID uuid) {
@@ -252,6 +258,10 @@ public class PlayerDataManager {
             Player player = Bukkit.getPlayer(uuid);
             String name = player != null ? player.getName() : uuid.toString().substring(0, 8);
             account = createNewAccount(uuid, name);
+            if (account == null) {
+                plugin.getLogger().severe(String.format("无法为玩家 %s 创建账户", name));
+                return;
+            }
         }
         
         checkAndResetDailyIncome(account);

@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.command;
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.sub.*;
 import com.oolonghoo.wooeco.config.MessageManager;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -70,7 +71,7 @@ public class MainCommand implements CommandExecutor, TabCompleter {
             SubCommandHandler handler = handlers.get(subCommand);
             
             if (handler == null) {
-                sender.sendMessage(messages.getWithPrefix("unknown-command"));
+                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("unknown-command")));
                 result = true;
             } else {
                 if (!sender.hasPermission(handler.getPermission())) {

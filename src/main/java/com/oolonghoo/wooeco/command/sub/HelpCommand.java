@@ -2,6 +2,8 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
@@ -33,24 +35,24 @@ public class HelpCommand extends AbstractSubCommandHandler {
     
     @Override
     public boolean execute(CommandSender sender, String[] args) {
-        sender.sendMessage(messages.get("help.header"));
-        sender.sendMessage(messages.get("help.look", Map.of("command", "eco")));
-        sender.sendMessage(messages.get("help.pay", Map.of("command", "eco")));
-        sender.sendMessage(messages.get("help.income", Map.of("command", "eco")));
-        sender.sendMessage(messages.get("help.top", Map.of("command", "eco")));
-        sender.sendMessage(messages.get("help.history", Map.of("command", "eco")));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.header")));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.look", Map.of("command", "eco"))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.pay", Map.of("command", "eco"))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.income", Map.of("command", "eco"))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.top", Map.of("command", "eco"))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.history", Map.of("command", "eco"))));
         
         if (sender.hasPermission("wooeco.admin")) {
-            sender.sendMessage(messages.get("help.admin-give", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.admin-giveall", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.admin-take", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.admin-takeall", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.admin-set", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.admin-setall", Map.of("command", "eco")));
-            sender.sendMessage(messages.get("help.reload", Map.of("command", "eco")));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-give", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-giveall", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-take", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-takeall", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-set", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.admin-setall", Map.of("command", "eco"))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.reload", Map.of("command", "eco"))));
         }
         
-        sender.sendMessage(messages.get("help.footer"));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("help.footer")));
         return true;
     }
     

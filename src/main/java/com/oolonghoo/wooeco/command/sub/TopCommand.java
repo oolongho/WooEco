@@ -2,8 +2,10 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.LeaderboardManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
@@ -46,19 +48,19 @@ public class TopCommand extends AbstractSubCommandHandler {
             return true;
         }
         
-        boolean incomeMode = false;
         int page = 1;
-        
+        boolean incomeMode;
+
         if (args.length > 0) {
             String type = args[0].toLowerCase();
-            if ("income".equals(type)) {
-                incomeMode = true;
-            } else if ("all".equals(type)) {
-                incomeMode = false;
-            } else {
-                sender.sendMessage(messages.getWithPrefix("top.usage"));
-                return true;
-            }
+            incomeMode = switch (type) {
+                case "income" -> true;
+                case "all" -> false;
+                default -> {
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("top.usage")));
+                    yield false;
+                }
+            };
             
             if (args.length > 1) {
                 try {
@@ -68,7 +70,7 @@ public class TopCommand extends AbstractSubCommandHandler {
                 }
             }
         } else {
-            sender.sendMessage(messages.getWithPrefix("top.usage"));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("top.usage")));
             return true;
         }
         
@@ -89,7 +91,7 @@ public class TopCommand extends AbstractSubCommandHandler {
             title = "财富排行榜";
         }
         
-        sender.sendMessage(messages.get("top.header", Map.of("title", title)));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("top.header", Map.of("title", title))));
         
         if (accounts.isEmpty()) {
             messages.send(sender, "top.no-data");
@@ -98,21 +100,21 @@ public class TopCommand extends AbstractSubCommandHandler {
             for (PlayerAccount account : accounts) {
                 double value = incomeMode ? account.getDailyIncomeDouble() : account.getBalanceDouble();
                 String formatted = plugin.getCurrencyConfig().format(value);
-                sender.sendMessage(messages.get("top.format", Map.of(
+                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("top.format", Map.of(
                     "rank", String.valueOf(rank),
                     "player", account.getPlayerName(),
                     "symbol", messages.getSymbol(),
                     "balance", formatted
-                )));
+                ))));
                 rank++;
             }
         }
         
-        sender.sendMessage(messages.get("top.page-info", Map.of(
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("top.page-info", Map.of(
             "page", String.valueOf(page),
             "total", String.valueOf(Math.max(totalPages, 1))
-        )));
-        sender.sendMessage(messages.get("top.footer"));
+        ))));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("top.footer")));
         
         return true;
     }

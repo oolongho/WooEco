@@ -67,7 +67,7 @@ public abstract class AbstractSubCommandHandler implements SubCommandHandler {
         if (cooldownManager.isOnCooldown(player, command)) {
             int remaining = cooldownManager.getRemainingCooldown(player, command);
             String message = cooldownManager.getCooldownMessage(remaining);
-            sender.sendMessage(MessageManager.translateColors(message));
+            ((net.kyori.adventure.audience.Audience) sender).sendMessage(MessageManager.deserialize(message));
             return false;
         }
         

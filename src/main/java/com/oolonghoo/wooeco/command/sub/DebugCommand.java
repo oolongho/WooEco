@@ -2,16 +2,17 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.util.DebugManager;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-/**
- * 调试命令处理器
- */
 public class DebugCommand extends AbstractSubCommandHandler {
     
     public DebugCommand(WooEco plugin) {
@@ -47,44 +48,42 @@ public class DebugCommand extends AbstractSubCommandHandler {
         DebugManager debug = plugin.getDebugManager();
         
         if (args.length < 1) {
-            sender.sendMessage("§e========== WooEco 调试帮助 ==========");
-            sender.sendMessage("§e/eco debug on §7- 开启调试模式");
-            sender.sendMessage("§e/eco debug off §7- 关闭调试模式");
-            sender.sendMessage("§e/eco debug status §7- 查看状态诊断");
-            sender.sendMessage("§e/eco debug player <玩家> §7- 查看玩家数据");
-            sender.sendMessage("§e/eco debug reload §7- 重载调试配置");
-            sender.sendMessage("§e====================================");
+            Audience audience = (Audience) sender;
+            audience.sendMessage(Component.text("========== WooEco 调试帮助 ==========", NamedTextColor.YELLOW));
+            audience.sendMessage(Component.text("/eco debug on ", NamedTextColor.YELLOW).append(Component.text("- 开启调试模式", NamedTextColor.GRAY)));
+            audience.sendMessage(Component.text("/eco debug off ", NamedTextColor.YELLOW).append(Component.text("- 关闭调试模式", NamedTextColor.GRAY)));
+            audience.sendMessage(Component.text("/eco debug status ", NamedTextColor.YELLOW).append(Component.text("- 查看状态诊断", NamedTextColor.GRAY)));
+            audience.sendMessage(Component.text("/eco debug player <玩家> ", NamedTextColor.YELLOW).append(Component.text("- 查看玩家数据", NamedTextColor.GRAY)));
+            audience.sendMessage(Component.text("/eco debug reload ", NamedTextColor.YELLOW).append(Component.text("- 重载调试配置", NamedTextColor.GRAY)));
+            audience.sendMessage(Component.text("====================================", NamedTextColor.YELLOW));
             return true;
         }
         
         String subCommand = args[0].toLowerCase();
         
         switch (subCommand) {
-            case "on":
+            case "on" -> {
                 debug.setEnabled(true);
-                sender.sendMessage("§a[WooEco] 调试模式已启用");
-                break;
-            case "off":
+                ((Audience) sender).sendMessage(MessageManager.deserialize("&a[WooEco] 调试模式已启用"));
+            }
+            case "off" -> {
                 debug.setEnabled(false);
-                sender.sendMessage("§c[WooEco] 调试模式已关闭");
-                break;
-            case "status":
-                debug.dumpState(sender);
-                break;
-            case "player":
+                ((Audience) sender).sendMessage(MessageManager.deserialize("&c[WooEco] 调试模式已关闭"));
+            }
+            case "status" -> debug.dumpState(sender);
+            case "player" -> {
                 if (args.length < 2) {
-                    sender.sendMessage("§c用法: /eco debug player <玩家名>");
+                    ((Audience) sender).sendMessage(MessageManager.deserialize("&c用法: /eco debug player <玩家名>"));
                     return true;
                 }
                 OfflinePlayer target = Bukkit.getOfflinePlayer(args[1]);
                 debug.dumpPlayerState(sender, target.getUniqueId());
-                break;
-            case "reload":
+            }
+            case "reload" -> {
                 debug.reload();
-                sender.sendMessage("§a[WooEco] 调试配置已重载");
-                break;
-            default:
-                sender.sendMessage("§c未知的调试命令: " + subCommand);
+                ((Audience) sender).sendMessage(MessageManager.deserialize("&a[WooEco] 调试配置已重载"));
+            }
+            default -> ((Audience) sender).sendMessage(MessageManager.deserialize("&c未知的调试命令: " + subCommand));
         }
         
         return true;

@@ -2,13 +2,17 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.EconomyManager;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Map;
+import java.util.Optional;
+
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Map;
 
 /**
  * 管理员批量发放货币命令处理器
@@ -49,13 +53,13 @@ public class GiveAllCommand extends AbstractSubCommandHandler {
         }
         
         if (args.length < 2) {
-            sender.sendMessage(messages.getWithPrefix("admin.giveall-usage"));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("admin.giveall-usage")));
             return true;
         }
-        
+
         String targetType = args[0].toLowerCase();
         if (!targetType.equals("all") && !targetType.equals("online")) {
-            sender.sendMessage(messages.getWithPrefix("admin.giveall-usage"));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("admin.giveall-usage")));
             return true;
         }
         
@@ -67,9 +71,9 @@ public class GiveAllCommand extends AbstractSubCommandHandler {
         
         boolean onlineOnly = targetType.equals("online");
         String operator = sender instanceof Player ? ((Player) sender).getUniqueId().toString() : "CONSOLE";
-        String operatorName = sender.getName();
+        String operatorName = Optional.ofNullable(sender.getName()).orElse("CONSOLE");
         
-        sender.sendMessage(messages.getWithPrefix("admin.batch-start"));
+        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("admin.batch-start")));
         String formatted = plugin.getCurrencyConfig().format(amount);
         
         if (plugin.getConfig().getBoolean("performance.batch-async", true)) {

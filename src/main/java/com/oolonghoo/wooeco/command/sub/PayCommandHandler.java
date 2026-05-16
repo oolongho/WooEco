@@ -2,9 +2,11 @@ package com.oolonghoo.wooeco.command.sub;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.command.AbstractSubCommandHandler;
+import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.manager.TransactionManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import net.kyori.adventure.audience.Audience;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -88,7 +90,7 @@ public class PayCommandHandler extends AbstractSubCommandHandler {
                     "amount", formatted
                 ));
             } else {
-                sender.sendMessage(messages.getPrefix() + "§c" + result.getErrorMessage());
+                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getPrefix() + "&c" + result.getErrorMessage()));
             }
             return true;
         }

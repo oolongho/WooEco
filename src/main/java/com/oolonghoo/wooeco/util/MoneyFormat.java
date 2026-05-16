@@ -59,10 +59,10 @@ public class MoneyFormat {
     
     private static void updateDecimalFormat() {
         StringBuilder pattern = new StringBuilder();
-        if (!",".equals(thousandsSeparator)) {
+        if (",".equals(thousandsSeparator)) {
             pattern.append("#,##0");
         } else {
-            pattern.append("#,##0");
+            pattern.append("#0");
         }
         
         if (!integerBalance && decimalPlaces > 0) {
