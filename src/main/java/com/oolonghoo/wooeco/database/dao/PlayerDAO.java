@@ -99,9 +99,9 @@ public class PlayerDAO {
         String sql;
         if (dbManager.isMySQL()) {
             sql = "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) " +
-                  "VALUES (?, ?, ?, ?, ?, ?, ?) " +
-                  "ON DUPLICATE KEY UPDATE player_name = VALUES(player_name), balance = VALUES(balance), " +
-                  "daily_income = VALUES(daily_income), last_income_reset = VALUES(last_income_reset), updated_at = VALUES(updated_at)";
+                  "VALUES (?, ?, ?, ?, ?, ?, ?) AS new_val " +
+                  "ON DUPLICATE KEY UPDATE player_name = new_val.player_name, balance = new_val.balance, " +
+                  "daily_income = new_val.daily_income, last_income_reset = new_val.last_income_reset, updated_at = new_val.updated_at";
         } else {
             sql = "INSERT OR REPLACE INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) " +
                   "VALUES (?, ?, ?, ?, ?, ?, ?)";

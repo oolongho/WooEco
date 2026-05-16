@@ -22,7 +22,7 @@ public class PlayerAccount {
     private final AtomicLong createdAt;
     private final AtomicLong updatedAt;
     private final AtomicBoolean dirty;
-    private final Object balanceLock = new Object();
+
     
     public PlayerAccount(UUID uuid, String playerName) {
         this.uuid = uuid;
@@ -73,7 +73,7 @@ public class PlayerAccount {
     }
     
     public BigDecimal getBalance() {
-        synchronized (balanceLock) {
+        synchronized (this) {
             return balance;
         }
     }
@@ -83,7 +83,7 @@ public class PlayerAccount {
     }
     
     public void setBalance(BigDecimal newBalance) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
         }
         this.updatedAt.set(System.currentTimeMillis());
@@ -95,7 +95,7 @@ public class PlayerAccount {
     }
     
     public BigDecimal getDailyIncome() {
-        synchronized (balanceLock) {
+        synchronized (this) {
             return dailyIncome;
         }
     }
@@ -105,7 +105,7 @@ public class PlayerAccount {
     }
     
     public void setDailyIncome(BigDecimal income) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(income);
         }
         this.dirty.set(true);
@@ -116,7 +116,7 @@ public class PlayerAccount {
     }
     
     public void addDailyIncome(BigDecimal amount) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(this.dailyIncome.add(amount));
         }
         this.dirty.set(true);

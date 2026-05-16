@@ -35,7 +35,7 @@ public class LookCommand extends AbstractSubCommandHandler {
     
     @Override
     public String getPermission() {
-        return "wooeco.balance.other";
+        return "wooeco.balance";
     }
     
     @Override
@@ -57,10 +57,9 @@ public class LookCommand extends AbstractSubCommandHandler {
         }
         
         org.bukkit.entity.Player player = (org.bukkit.entity.Player) sender;
-        String playerName = player.getName();
-        PlayerAccount account = playerDataManager.getAccount(playerName);
+        PlayerAccount account = playerDataManager.getAccount(player.getUniqueId());
         if (account == null) {
-            messages.send(sender, "player-not-found", Map.of("player", playerName));
+            messages.send(sender, "player-not-found", Map.of("player", player.getName()));
             return true;
         }
         

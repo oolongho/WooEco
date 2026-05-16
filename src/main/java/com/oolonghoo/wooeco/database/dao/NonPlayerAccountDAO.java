@@ -51,13 +51,11 @@ public class NonPlayerAccountDAO {
     public void createAccount(NonPlayerAccount account) throws SQLException {
         String sql;
         if (databaseManager.isMySQL()) {
-            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
-                  "ON DUPLICATE KEY UPDATE balance = VALUES(balance), updated_at = VALUES(updated_at)";
+            sql = "INSERT IGNORE INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
         } else {
-            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
-                  "ON CONFLICT(account_name) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at";
+            sql = "INSERT OR IGNORE INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
         }
         
         databaseManager.getWriteLock().lock();
@@ -80,8 +78,8 @@ public class NonPlayerAccountDAO {
         String sql;
         if (databaseManager.isMySQL()) {
             sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
-                  "ON DUPLICATE KEY UPDATE balance = ?, updated_at = ?";
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) AS new_val " +
+                  "ON DUPLICATE KEY UPDATE balance = new_val.balance, updated_at = new_val.updated_at";
         } else {
             sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
                   "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
@@ -97,11 +95,6 @@ public class NonPlayerAccountDAO {
             stmt.setBigDecimal(2, account.getBalance());
             stmt.setLong(3, account.getCreatedAt());
             stmt.setLong(4, now);
-            
-            if (databaseManager.isMySQL()) {
-                stmt.setBigDecimal(5, account.getBalance());
-                stmt.setLong(6, now);
-            }
             
             stmt.executeUpdate();
             account.markSaved();

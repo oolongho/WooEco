@@ -84,7 +84,7 @@ public class EconomyManager {
             oldBalance = account.getBalance();
             newBalance = oldBalance.add(amount);
             if (newBalance.compareTo(maxBalance) > 0) {
-                return new EconomyResult(false, oldBalance, oldBalance, BigDecimal.ZERO, "余额已达上限");
+                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "余额已达上限");
             }
             account.setBalance(newBalance);
         }
@@ -100,7 +100,7 @@ public class EconomyManager {
                     account.setBalance(oldBalance);
                 }
             }
-            return new EconomyResult(false, oldBalance, oldBalance, BigDecimal.ZERO, "操作被取消");
+            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
@@ -128,7 +128,8 @@ public class EconomyManager {
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
-        return new EconomyResult(true, amount, newBalance, BigDecimal.ZERO, null);
+        BigDecimal actualChange = newBalance.subtract(oldBalance);
+        return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
     }
     
     public EconomyResult withdraw(UUID uuid, double amount) {
@@ -173,7 +174,7 @@ public class EconomyManager {
                     account.setBalance(oldBalance);
                 }
             }
-            return new EconomyResult(false, oldBalance, oldBalance, BigDecimal.ZERO, "操作被取消");
+            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
@@ -193,7 +194,8 @@ public class EconomyManager {
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
-        return new EconomyResult(true, amount, newBalance, BigDecimal.ZERO, null);
+        BigDecimal actualChange = oldBalance.subtract(newBalance);
+        return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
     }
     
     public EconomyResult set(UUID uuid, double amount) {
@@ -222,7 +224,7 @@ public class EconomyManager {
         synchronized (account) {
             oldBalance = account.getBalance();
             if (amount.compareTo(maxBalance) > 0) {
-                return new EconomyResult(false, oldBalance, oldBalance, BigDecimal.ZERO, "余额超出上限");
+                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "余额超出上限");
             }
             newBalance = amount;
             account.setBalance(newBalance);
@@ -238,7 +240,7 @@ public class EconomyManager {
                     account.setBalance(oldBalance);
                 }
             }
-            return new EconomyResult(false, oldBalance, oldBalance, BigDecimal.ZERO, "操作被取消");
+            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
@@ -259,7 +261,8 @@ public class EconomyManager {
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
-        return new EconomyResult(true, amount.subtract(oldBalance).abs(), newBalance, BigDecimal.ZERO, null);
+        BigDecimal actualChange = newBalance.subtract(oldBalance);
+        return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
     }
     
     private void publishSync(UUID uuid, String playerName, BigDecimal newBalance) {

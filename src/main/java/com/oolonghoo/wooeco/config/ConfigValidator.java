@@ -92,7 +92,7 @@ public class ConfigValidator {
             warnings.add("currency.format.decimal-places 建议在0-10之间，当前为: " + decimalPlaces);
         }
         
-        int roundingMode = config.getInt("currency.rounding-mode", 2);
+        int roundingMode = config.getInt("currency.rounding-mode", 0);
         if (roundingMode < 0 || roundingMode > 2) {
             errors.add("currency.rounding-mode 无效值: " + roundingMode + "，应为 0(向下)/1(向上)/2(四舍五入)");
             hasErrors = true;

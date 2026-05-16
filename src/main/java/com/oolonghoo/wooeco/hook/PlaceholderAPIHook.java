@@ -12,7 +12,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 
@@ -94,7 +93,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         if (identifier.equals("balance_value")) {
             if (player == null) return "0";
             double balance = economy.getBalance(player.getUniqueId());
-            return BigDecimal.valueOf(balance).setScale(2, RoundingMode.HALF_UP).toString();
+            return plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(balance)).toString();
         }
         
         if (identifier.equals("daily_income")) {
@@ -150,7 +149,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         if (identifier.equals("sum_balance_formatted")) {
             GlobalStatsManager stats = plugin.getGlobalStatsManager();
             if (stats == null) return "0";
-            return plugin.getCurrencyConfig().format(stats.getTotalBalance().doubleValue());
+            return plugin.getCurrencyConfig().format(stats.getTotalBalance());
         }
         
         if (identifier.equals("player_count")) {

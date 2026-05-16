@@ -106,9 +106,9 @@ public class LogManager {
         sb.append("[").append(timestamp).append("] ");
         sb.append("[").append(log.getAction()).append("] ");
         sb.append("玩家: ").append(log.getPlayerName());
-        sb.append(" | 金额: ").append(String.format("%.2f", log.getAmountDouble()));
-        sb.append(" | 余额: ").append(String.format("%.2f", log.getBalanceBeforeDouble()));
-        sb.append(" -> ").append(String.format("%.2f", log.getBalanceAfterDouble()));
+        sb.append(" | 金额: ").append(plugin.getCurrencyConfig().format(log.getAmount()));
+        sb.append(" | 余额: ").append(plugin.getCurrencyConfig().format(log.getBalanceBefore()));
+        sb.append(" -> ").append(plugin.getCurrencyConfig().format(log.getBalanceAfter()));
         
         if (log.getOperatorName() != null && !log.getOperatorName().isEmpty()) {
             sb.append(" | 操作者: ").append(log.getOperatorName());

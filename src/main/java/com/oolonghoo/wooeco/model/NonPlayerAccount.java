@@ -6,11 +6,6 @@ import java.math.BigDecimal;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * 非玩家账户模型
- * 用于城镇、势力、银行等非玩家实体
- * 
- */
 public class NonPlayerAccount {
     
     private final String accountName;
@@ -18,7 +13,6 @@ public class NonPlayerAccount {
     private final AtomicLong createdAt;
     private final AtomicLong updatedAt;
     private final AtomicBoolean dirty;
-    private final Object balanceLock = new Object();
     
     public NonPlayerAccount(String accountName) {
         this.accountName = accountName;
@@ -49,7 +43,7 @@ public class NonPlayerAccount {
     }
     
     public BigDecimal getBalance() {
-        synchronized (balanceLock) {
+        synchronized (this) {
             return balance;
         }
     }
@@ -59,7 +53,7 @@ public class NonPlayerAccount {
     }
     
     public void setBalance(BigDecimal newBalance) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
         }
         this.updatedAt.set(System.currentTimeMillis());
@@ -71,7 +65,7 @@ public class NonPlayerAccount {
     }
     
     public void deposit(BigDecimal amount) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             BigDecimal maxBalance = WooEco.getInstance().getCurrencyConfig().getMaxBalanceBigDecimal();
             BigDecimal newBalance = this.balance.add(amount);
             if (newBalance.compareTo(maxBalance) > 0) {
@@ -84,7 +78,7 @@ public class NonPlayerAccount {
     }
     
     public void withdraw(BigDecimal amount) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             BigDecimal newBalance = this.balance.subtract(amount);
             if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
                 newBalance = BigDecimal.ZERO;
@@ -96,7 +90,7 @@ public class NonPlayerAccount {
     }
     
     public boolean hasEnough(BigDecimal amount) {
-        synchronized (balanceLock) {
+        synchronized (this) {
             return this.balance.compareTo(amount) >= 0;
         }
     }
