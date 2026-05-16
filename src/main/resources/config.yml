@@ -176,6 +176,10 @@ database:
     pool-size: 10
     # 表前缀
     table-prefix: "wooeco_"
+    # 是否使用SSL连接
+    use-ssl: false
+    # 服务器时区
+    server-timezone: "Asia/Shanghai"
   
   # 自动保存间隔(秒)
   auto-save: 60

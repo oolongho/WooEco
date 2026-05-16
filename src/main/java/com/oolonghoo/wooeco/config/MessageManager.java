@@ -4,6 +4,7 @@ import com.oolonghoo.wooeco.WooEco;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import org.bukkit.ChatColor;
 import org.bukkit.command.CommandSender;
 
 import java.util.HashMap;
@@ -14,7 +15,9 @@ import java.util.regex.Pattern;
 public class MessageManager extends ConfigLoader {
     
     private static final Pattern HEX_PATTERN = Pattern.compile("&#([A-Fa-f0-9]{6})");
-    private static final LegacyComponentSerializer SERIALIZER = LegacyComponentSerializer.legacyAmpersand();
+    private static final LegacyComponentSerializer SERIALIZER = LegacyComponentSerializer.builder()
+        .hexColors()
+        .build();
     
     private String prefix;
     private final WooEco wooEco;
@@ -78,13 +81,11 @@ public class MessageManager extends ConfigLoader {
         
         while (matcher.find()) {
             String hex = matcher.group(1);
-            StringBuilder replacement = new StringBuilder("&#");
-            replacement.append(hex);
-            matcher.appendReplacement(result, replacement.toString());
+            matcher.appendReplacement(result, "\u00a7#" + hex);
         }
         matcher.appendTail(result);
 
-        return result.toString();
+        return ChatColor.translateAlternateColorCodes('&', result.toString());
     }
     
     public static Component deserialize(String message) {

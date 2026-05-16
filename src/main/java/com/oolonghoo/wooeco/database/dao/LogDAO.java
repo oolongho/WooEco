@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.database.dao;
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.model.EconomyLog;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,9 +32,9 @@ public class LogDAO {
             stmt.setString(1, log.getUuid().toString());
             stmt.setString(2, log.getPlayerName());
             stmt.setString(3, log.getAction());
-            stmt.setDouble(4, log.getAmount());
-            stmt.setDouble(5, log.getBalanceBefore());
-            stmt.setDouble(6, log.getBalanceAfter());
+            stmt.setBigDecimal(4, log.getAmount());
+            stmt.setBigDecimal(5, log.getBalanceBefore());
+            stmt.setBigDecimal(6, log.getBalanceAfter());
             stmt.setString(7, log.getOperator());
             stmt.setString(8, log.getOperatorName());
             stmt.setString(9, log.getReason());
@@ -59,9 +60,9 @@ public class LogDAO {
                     UUID.fromString(rs.getString("uuid")),
                     rs.getString("player_name"),
                     rs.getString("action"),
-                    rs.getDouble("amount"),
-                    rs.getDouble("balance_before"),
-                    rs.getDouble("balance_after"),
+                    rs.getBigDecimal("amount"),
+                    rs.getBigDecimal("balance_before"),
+                    rs.getBigDecimal("balance_after"),
                     rs.getString("operator"),
                     rs.getString("operator_name"),
                     rs.getString("reason"),
@@ -89,9 +90,9 @@ public class LogDAO {
                     UUID.fromString(rs.getString("uuid")),
                     rs.getString("player_name"),
                     rs.getString("action"),
-                    rs.getDouble("amount"),
-                    rs.getDouble("balance_before"),
-                    rs.getDouble("balance_after"),
+                    rs.getBigDecimal("amount"),
+                    rs.getBigDecimal("balance_before"),
+                    rs.getBigDecimal("balance_after"),
                     rs.getString("operator"),
                     rs.getString("operator_name"),
                     rs.getString("reason"),

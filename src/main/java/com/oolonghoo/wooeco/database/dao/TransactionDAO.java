@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.database.dao;
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.model.Transaction;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,8 +33,8 @@ public class TransactionDAO {
             stmt.setString(2, transaction.getSenderName());
             stmt.setString(3, transaction.getReceiverUuid().toString());
             stmt.setString(4, transaction.getReceiverName());
-            stmt.setDouble(5, transaction.getAmount());
-            stmt.setDouble(6, transaction.getTax());
+            stmt.setBigDecimal(5, transaction.getAmount());
+            stmt.setBigDecimal(6, transaction.getTaxDecimal());
             stmt.setLong(7, transaction.getTimestamp());
             stmt.executeUpdate();
         } finally {
@@ -66,8 +67,8 @@ public class TransactionDAO {
                     rs.getString("sender_name"),
                     UUID.fromString(rs.getString("receiver_uuid")),
                     rs.getString("receiver_name"),
-                    rs.getDouble("amount"),
-                    rs.getDouble("tax"),
+                    rs.getBigDecimal("amount"),
+                    rs.getBigDecimal("tax"),
                     rs.getLong("timestamp")
                 ));
             }
@@ -115,8 +116,8 @@ public class TransactionDAO {
                     rs.getString("sender_name"),
                     UUID.fromString(rs.getString("receiver_uuid")),
                     rs.getString("receiver_name"),
-                    rs.getDouble("amount"),
-                    rs.getDouble("tax"),
+                    rs.getBigDecimal("amount"),
+                    rs.getBigDecimal("tax"),
                     rs.getLong("timestamp")
                 ));
             }

@@ -1,6 +1,6 @@
 package com.oolonghoo.wooeco.model;
 
-import com.oolonghoo.wooeco.util.MoneyFormat;
+import com.oolonghoo.wooeco.WooEco;
 
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -39,8 +39,8 @@ public class PlayerAccount {
                          long lastIncomeReset, long createdAt, long updatedAt) {
         this.uuid = uuid;
         this.playerName = playerName;
-        this.balance = MoneyFormat.formatInput(balance);
-        this.dailyIncome = MoneyFormat.formatInput(dailyIncome);
+        this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(balance);
+        this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(dailyIncome);
         this.lastIncomeReset = new AtomicLong(lastIncomeReset);
         this.createdAt = new AtomicLong(createdAt);
         this.updatedAt = new AtomicLong(updatedAt);
@@ -84,7 +84,7 @@ public class PlayerAccount {
     
     public void setBalance(BigDecimal newBalance) {
         synchronized (balanceLock) {
-            this.balance = MoneyFormat.formatInput(newBalance);
+            this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
         }
         this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
@@ -106,7 +106,7 @@ public class PlayerAccount {
     
     public void setDailyIncome(BigDecimal income) {
         synchronized (balanceLock) {
-            this.dailyIncome = MoneyFormat.formatInput(income);
+            this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(income);
         }
         this.dirty.set(true);
     }
@@ -117,7 +117,7 @@ public class PlayerAccount {
     
     public void addDailyIncome(BigDecimal amount) {
         synchronized (balanceLock) {
-            this.dailyIncome = MoneyFormat.formatInput(this.dailyIncome.add(amount));
+            this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(this.dailyIncome.add(amount));
         }
         this.dirty.set(true);
     }

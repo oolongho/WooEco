@@ -7,6 +7,7 @@ import com.oolonghoo.wooeco.model.OfflineTransferTip;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.entity.Player;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
@@ -26,7 +27,7 @@ public class OfflineTransferManager {
         return plugin.getConfig().getBoolean("transaction.offline-transfer-tips", true);
     }
     
-    public void recordOfflineTransfer(UUID receiverUuid, String senderName, double amount) {
+    public void recordOfflineTransfer(UUID receiverUuid, String senderName, BigDecimal amount) {
         if (!isEnabled()) return;
         
         OfflineTransferTip tip = new OfflineTransferTip(receiverUuid, senderName, amount);

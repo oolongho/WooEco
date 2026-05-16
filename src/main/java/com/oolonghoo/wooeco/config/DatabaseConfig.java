@@ -21,6 +21,8 @@ public class DatabaseConfig {
     private String mysqlPassword;
     private int mysqlPoolSize;
     private String mysqlTablePrefix;
+    private boolean mysqlUseSSL;
+    private String mysqlServerTimezone;
     
     private boolean syncEnabled;
     private String redisHost;
@@ -66,6 +68,8 @@ public class DatabaseConfig {
             this.mysqlPassword = mysqlSection.getString("password", "");
             this.mysqlPoolSize = mysqlSection.getInt("pool-size", 10);
             this.mysqlTablePrefix = sanitizeTablePrefix(mysqlSection.getString("table-prefix", "wooeco_"));
+            this.mysqlUseSSL = mysqlSection.getBoolean("use-ssl", false);
+            this.mysqlServerTimezone = mysqlSection.getString("server-timezone", "Asia/Shanghai");
         } else {
             setMySqlDefaults();
         }
@@ -130,6 +134,8 @@ public class DatabaseConfig {
         this.mysqlPassword = "";
         this.mysqlPoolSize = 10;
         this.mysqlTablePrefix = "wooeco_";
+        this.mysqlUseSSL = false;
+        this.mysqlServerTimezone = "Asia/Shanghai";
     }
     
     private void setRedisDefaults() {
@@ -224,7 +230,7 @@ public class DatabaseConfig {
     public String getJdbcUrl() {
         if (isMySQL()) {
             return "jdbc:mysql://" + mysqlHost + ":" + mysqlPort + "/" + mysqlDatabase 
-                + "?useSSL=false&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai";
+                + "?useSSL=" + mysqlUseSSL + "&serverTimezone=" + mysqlServerTimezone + "&autoReconnect=true&useUnicode=true&characterEncoding=UTF-8";
         } else {
             return "jdbc:sqlite:" + plugin.getDataFolder().getAbsolutePath() + "/" + sqliteFile;
         }

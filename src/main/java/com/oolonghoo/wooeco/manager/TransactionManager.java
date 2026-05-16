@@ -73,7 +73,7 @@ public class TransactionManager {
         TransactionEvent event = new TransactionEvent(
             senderUuid, senderAccount.getPlayerName(),
             receiverUuid, receiverAccount.getPlayerName(),
-            amount.doubleValue(), tax.doubleValue()
+            amount, tax
         );
         Bukkit.getPluginManager().callEvent(event);
         
@@ -81,8 +81,8 @@ public class TransactionManager {
             return new TransactionResult(false, "交易被取消", BigDecimal.ZERO, BigDecimal.ZERO);
         }
         
-        amount = BigDecimal.valueOf(event.getAmount());
-        tax = BigDecimal.valueOf(event.getTax());
+        amount = event.getAmountDecimal();
+        tax = event.getTaxDecimal();
         totalCost = amount.add(tax);
         
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -127,14 +127,14 @@ public class TransactionManager {
         Transaction transaction = new Transaction(
             senderUuid, senderAccount.getPlayerName(),
             receiverUuid, receiverAccount.getPlayerName(),
-            amount.doubleValue(), tax.doubleValue()
+            amount, tax
         );
         
         saveTransactionAsync(transaction);
         
         if (!plugin.getPlayerDataManager().isOnline(receiverUuid)) {
             plugin.getOfflineTransferManager().recordOfflineTransfer(
-                receiverUuid, senderAccount.getPlayerName(), amount.doubleValue()
+                receiverUuid, senderAccount.getPlayerName(), amount
             );
         }
         

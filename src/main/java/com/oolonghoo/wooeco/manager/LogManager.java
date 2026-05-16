@@ -8,9 +8,12 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.sql.SQLException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
@@ -23,8 +26,8 @@ public class LogManager {
     private final WooEco plugin;
     private final LogDAO logDAO;
     private final File logFolder;
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-    private final SimpleDateFormat fileDateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private final DateTimeFormatter fileDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
     public LogManager(WooEco plugin) {
         this.plugin = plugin;
@@ -36,7 +39,7 @@ public class LogManager {
     }
     
     public void logBalanceChange(UUID uuid, String playerName, String action, 
-                                  double amount, double balanceBefore, double balanceAfter,
+                                  BigDecimal amount, BigDecimal balanceBefore, BigDecimal balanceAfter,
                                   String operator, String operatorName, String reason) {
         if (!shouldLog(action)) {
             return;
@@ -76,11 +79,11 @@ public class LogManager {
     
     private void writeToFile(EconomyLog log) {
         String logType = getLogType(log.getAction());
-        File logFile = new File(logFolder, logType + "-" + fileDateFormat.format(new Date()) + ".log");
+        File logFile = new File(logFolder, logType + "-" + fileDateFormat.format(LocalDateTime.now()) + ".log");
         
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (PrintWriter writer = new PrintWriter(new FileWriter(logFile, true))) {
-                String timestamp = dateFormat.format(new Date(log.getTimestamp()));
+                String timestamp = dateFormat.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(log.getTimestamp()), ZoneId.systemDefault()));
                 String logLine = formatLogLine(log, timestamp);
                 writer.println(logLine);
             } catch (IOException e) {
@@ -103,9 +106,9 @@ public class LogManager {
         sb.append("[").append(timestamp).append("] ");
         sb.append("[").append(log.getAction()).append("] ");
         sb.append("玩家: ").append(log.getPlayerName());
-        sb.append(" | 金额: ").append(String.format("%.2f", log.getAmount()));
-        sb.append(" | 余额: ").append(String.format("%.2f", log.getBalanceBefore()));
-        sb.append(" -> ").append(String.format("%.2f", log.getBalanceAfter()));
+        sb.append(" | 金额: ").append(String.format("%.2f", log.getAmountDouble()));
+        sb.append(" | 余额: ").append(String.format("%.2f", log.getBalanceBeforeDouble()));
+        sb.append(" -> ").append(String.format("%.2f", log.getBalanceAfterDouble()));
         
         if (log.getOperatorName() != null && !log.getOperatorName().isEmpty()) {
             sb.append(" | 操作者: ").append(log.getOperatorName());

@@ -147,7 +147,7 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                             String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
                             String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
                             String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
-                            String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmount());
+                            String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
                             String time = formatTime(tx.getTimestamp());
                             
                             ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(

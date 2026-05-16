@@ -3,8 +3,10 @@ package com.oolonghoo.wooeco.manager;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -12,7 +14,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
 import com.oolonghoo.wooeco.model.NonPlayerAccount;
 import com.oolonghoo.wooeco.util.AsyncUtils;
-import com.oolonghoo.wooeco.util.ThreadUtils;
+import org.bukkit.Bukkit;
 
 /**
  * 非玩家账户管理器
@@ -25,6 +27,7 @@ public class NonPlayerAccountManager {
     private final NonPlayerAccountDAO accountDAO;
     private final ConcurrentMap<String, NonPlayerAccount> cache;
     private List<String> whitelistFields;
+    private Set<String> lowercasePrefixes;
     private boolean whitelistEnabled;
     private boolean enabled;
     
@@ -39,6 +42,10 @@ public class NonPlayerAccountManager {
         this.enabled = plugin.getConfig().getBoolean("non-player-account.enable", false);
         this.whitelistEnabled = plugin.getConfig().getBoolean("non-player-account.whitelist.enable", false);
         this.whitelistFields = new ArrayList<>(plugin.getConfig().getStringList("non-player-account.whitelist.fields-list"));
+        this.lowercasePrefixes = new HashSet<>();
+        for (String field : whitelistFields) {
+            lowercasePrefixes.add(field.toLowerCase());
+        }
     }
     
     public void reload() {
@@ -50,16 +57,13 @@ public class NonPlayerAccountManager {
     }
     
     public boolean isNonPlayerAccount(String accountName) {
-        if (!enabled) {
+        if (!enabled || !whitelistEnabled) {
             return false;
         }
         
-        if (!whitelistEnabled) {
-            return false;
-        }
-        
-        for (String field : whitelistFields) {
-            if (accountName.toLowerCase().contains(field.toLowerCase())) {
+        String lower = accountName.toLowerCase();
+        for (String prefix : lowercasePrefixes) {
+            if (lower.contains(prefix)) {
                 return true;
             }
         }
@@ -156,7 +160,7 @@ public class NonPlayerAccountManager {
             return false;
         }
         
-        BigDecimal maxBalance = com.oolonghoo.wooeco.util.MoneyFormat.getMaxBalance();
+        BigDecimal maxBalance = plugin.getCurrencyConfig().getMaxBalanceBigDecimal();
         if (account.getBalance().add(amount).compareTo(maxBalance) > 0) {
             return false;
         }
@@ -191,7 +195,7 @@ public class NonPlayerAccountManager {
             return false;
         }
         
-        BigDecimal maxBalance = com.oolonghoo.wooeco.util.MoneyFormat.getMaxBalance();
+        BigDecimal maxBalance = plugin.getCurrencyConfig().getMaxBalanceBigDecimal();
         if (amount.compareTo(maxBalance) > 0) {
             return false;
         }
@@ -258,7 +262,7 @@ public class NonPlayerAccountManager {
     }
     
     public void saveAccountAsync(NonPlayerAccount account) {
-        ThreadUtils.runSmart(() -> saveAccount(account));
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveAccount(account));
     }
     
     public void saveAll() {

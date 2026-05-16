@@ -2,6 +2,7 @@ package com.oolonghoo.wooeco.command;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.config.MessageManager;
+import com.oolonghoo.wooeco.manager.CooldownManager;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.manager.TransactionManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
@@ -44,6 +45,18 @@ public class PayCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission("wooeco.pay")) {
             messages.send(sender, "no-permission");
             return true;
+        }
+        
+        CooldownManager cooldownManager = plugin.getCooldownManager();
+        if (cooldownManager != null && cooldownManager.isEnabled()) {
+            Player cooldownPlayer = (Player) sender;
+            if (cooldownManager.isOnCooldown(cooldownPlayer, "pay")) {
+                int remaining = cooldownManager.getRemainingCooldown(cooldownPlayer, "pay");
+                String message = cooldownManager.getCooldownMessage(remaining);
+                ((net.kyori.adventure.audience.Audience) sender).sendMessage(MessageManager.deserialize(message));
+                return true;
+            }
+            cooldownManager.setCooldown(cooldownPlayer, "pay");
         }
         
         if (args.length < 2) {

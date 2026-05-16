@@ -4,7 +4,6 @@ import com.oolonghoo.wooeco.WooEco;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +23,7 @@ public class CooldownManager {
     
     public CooldownManager(WooEco plugin) {
         this.plugin = plugin;
-        this.cooldowns = new HashMap<>();
+        this.cooldowns = new ConcurrentHashMap<>();
         this.playerCooldowns = new ConcurrentHashMap<>();
         loadConfig();
     }

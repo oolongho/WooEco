@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.database.dao;
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.model.OfflineTransferTip;
 
+import java.math.BigDecimal;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +31,7 @@ public class OfflineTransferTipDAO {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, tip.getReceiverUuid().toString());
             stmt.setString(2, tip.getSenderName());
-            stmt.setDouble(3, tip.getAmount());
+            stmt.setBigDecimal(3, tip.getAmount());
             stmt.setLong(4, tip.getTimestamp());
             stmt.executeUpdate();
         } finally {
@@ -51,7 +52,7 @@ public class OfflineTransferTipDAO {
                     rs.getLong("id"),
                     UUID.fromString(rs.getString("receiver_uuid")),
                     rs.getString("sender_name"),
-                    rs.getDouble("amount"),
+                    rs.getBigDecimal("amount"),
                     rs.getLong("timestamp"),
                     rs.getInt("notified") == 1
                 ));

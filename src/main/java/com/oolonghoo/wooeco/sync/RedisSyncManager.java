@@ -8,6 +8,7 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -83,10 +84,6 @@ public class RedisSyncManager {
         subscribeThread = new Thread(() -> {
             while (running && !Thread.currentThread().isInterrupted()) {
                 try (Jedis jedis = jedisPool.getResource()) {
-                    String password = config.getRedisPassword();
-                    if (password != null && !password.isEmpty()) {
-                        jedis.auth(password);
-                    }
                     jedis.subscribe(subscriber, channel);
                 } catch (Exception e) {
                     if (running) {
@@ -104,7 +101,7 @@ public class RedisSyncManager {
         subscribeThread.start();
     }
     
-    public void publishBalanceUpdate(UUID uuid, String playerName, double newBalance) {
+    public void publishBalanceUpdate(UUID uuid, String playerName, BigDecimal newBalance) {
         if (!running || jedisPool == null) return;
         
         SyncMessage message = new SyncMessage(
@@ -112,9 +109,9 @@ public class RedisSyncManager {
             serverId,
             uuid,
             playerName,
-            newBalance,
-            0,
-            0
+            newBalance.toPlainString(),
+            BigDecimal.ZERO.toPlainString(),
+            System.currentTimeMillis()
         );
         
         publish(message);
@@ -128,9 +125,9 @@ public class RedisSyncManager {
             serverId,
             uuid,
             null,
-            0,
-            0,
-            0
+            BigDecimal.ZERO.toPlainString(),
+            BigDecimal.ZERO.toPlainString(),
+            System.currentTimeMillis()
         );
         
         publish(message);
@@ -139,10 +136,6 @@ public class RedisSyncManager {
     private void publish(SyncMessage message) {
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try (Jedis jedis = jedisPool.getResource()) {
-                String password = config.getRedisPassword();
-                if (password != null && !password.isEmpty()) {
-                    jedis.auth(password);
-                }
                 jedis.publish(channel, serialize(message));
             } catch (Exception e) {
                 plugin.getLogger().warning("发布同步消息失败: " + e.getMessage());
@@ -176,8 +169,11 @@ public class RedisSyncManager {
         PlayerAccount account = plugin.getPlayerDataManager().getOnlineAccount(uuid);
         
         if (account != null) {
-            account.setBalance(sync.getBalance());
-            plugin.getLogger().fine("从 Redis 同步余额: " + sync.getPlayerName() + " -> " + sync.getBalance());
+            BigDecimal newBalance = new BigDecimal(sync.getBalance());
+            synchronized (account) {
+                account.setBalance(newBalance);
+            }
+            plugin.getLogger().fine("从 Redis 同步余额: " + sync.getPlayerName() + " -> " + newBalance.toPlainString());
         }
     }
     
@@ -186,7 +182,7 @@ public class RedisSyncManager {
         PlayerAccount account = plugin.getPlayerDataManager().getOnlineAccount(uuid);
         
         if (account != null) {
-            account.setDailyIncome(0);
+            account.setDailyIncome(BigDecimal.ZERO);
         }
     }
     
@@ -224,18 +220,10 @@ public class RedisSyncManager {
             throw new IllegalArgumentException("无效的 UUID: " + parts[2]);
         }
         String playerName = parts[3].isEmpty() ? null : parts[3];
-        double balance = parseSafeDouble(parts[4]);
-        double dailyIncome = parseSafeDouble(parts[5]);
+        String balance = parts[4];
+        String dailyIncome = parts[5];
         long timestamp = Long.parseLong(parts[6]);
         return new SyncMessage(type, serverId, uuid, playerName, balance, dailyIncome, timestamp);
-    }
-    
-    private static double parseSafeDouble(String s) {
-        double d = Double.parseDouble(s);
-        if (Double.isNaN(d) || Double.isInfinite(d)) {
-            throw new IllegalArgumentException("无效的数值: " + s);
-        }
-        return d;
     }
     
     public void reload() {
@@ -275,12 +263,12 @@ public class RedisSyncManager {
         private final String serverId;
         private final UUID uuid;
         private final String playerName;
-        private final double balance;
-        private final double dailyIncome;
+        private final String balance;
+        private final String dailyIncome;
         private final long timestamp;
         
         public SyncMessage(SyncType type, String serverId, UUID uuid, String playerName,
-                          double balance, double dailyIncome, long timestamp) {
+                          String balance, String dailyIncome, long timestamp) {
             this.type = type;
             this.serverId = serverId;
             this.uuid = uuid;
@@ -294,8 +282,8 @@ public class RedisSyncManager {
         public String getServerId() { return serverId; }
         public UUID getUuid() { return uuid; }
         public String getPlayerName() { return playerName; }
-        public double getBalance() { return balance; }
-        public double getDailyIncome() { return dailyIncome; }
+        public String getBalance() { return balance; }
+        public String getDailyIncome() { return dailyIncome; }
         public long getTimestamp() { return timestamp; }
     }
 }

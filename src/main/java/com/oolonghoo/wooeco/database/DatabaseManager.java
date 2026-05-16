@@ -14,6 +14,9 @@ import java.io.File;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
@@ -26,6 +29,15 @@ public class DatabaseManager {
     private final WooEco plugin;
     private final DatabaseConfig config;
     private final ReentrantReadWriteLock rwLock = new ReentrantReadWriteLock();
+    
+    private static final Lock NO_OP_LOCK = new Lock() {
+        @Override public void lock() {}
+        @Override public void lockInterruptibly() {}
+        @Override public boolean tryLock() { return true; }
+        @Override public boolean tryLock(long time, TimeUnit unit) { return true; }
+        @Override public void unlock() {}
+        @Override public Condition newCondition() { return null; }
+    };
     
     private HikariDataSource dataSource;
     private String tablePrefix;
@@ -97,7 +109,10 @@ public class DatabaseManager {
     }
     
     private void createTables() throws SQLException {
-        rwLock.writeLock().lock();
+        int decimalPlaces = plugin.getConfig().getInt("currency.decimal-places", 2);
+        
+        Lock writeLock = getWriteLock();
+        writeLock.lock();
         try (Connection conn = getConnection();
              Statement stmt = conn.createStatement()) {
             
@@ -106,8 +121,8 @@ public class DatabaseManager {
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                 "uuid VARCHAR(36) NOT NULL UNIQUE, " +
                 "player_name VARCHAR(16) NOT NULL, " +
-                "balance DECIMAL(20,2) NOT NULL DEFAULT 0, " +
-                "daily_income DECIMAL(20,2) NOT NULL DEFAULT 0, " +
+                "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
+                "daily_income DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "last_income_reset BIGINT NOT NULL, " +
                 "created_at BIGINT NOT NULL, " +
                 "updated_at BIGINT NOT NULL, " +
@@ -119,8 +134,8 @@ public class DatabaseManager {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "uuid VARCHAR(36) NOT NULL UNIQUE, " +
                 "player_name VARCHAR(16) NOT NULL, " +
-                "balance REAL NOT NULL DEFAULT 0, " +
-                "daily_income REAL NOT NULL DEFAULT 0, " +
+                "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
+                "daily_income DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "last_income_reset INTEGER NOT NULL, " +
                 "created_at INTEGER NOT NULL, " +
                 "updated_at INTEGER NOT NULL)";
@@ -139,8 +154,8 @@ public class DatabaseManager {
                 "sender_name VARCHAR(16) NOT NULL, " +
                 "receiver_uuid VARCHAR(36) NOT NULL, " +
                 "receiver_name VARCHAR(16) NOT NULL, " +
-                "amount DECIMAL(20,2) NOT NULL, " +
-                "tax DECIMAL(20,2) NOT NULL DEFAULT 0, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "tax DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "timestamp BIGINT NOT NULL, " +
                 "INDEX idx_sender (sender_uuid), " +
                 "INDEX idx_receiver (receiver_uuid), " +
@@ -153,8 +168,8 @@ public class DatabaseManager {
                 "sender_name VARCHAR(16) NOT NULL, " +
                 "receiver_uuid VARCHAR(36) NOT NULL, " +
                 "receiver_name VARCHAR(16) NOT NULL, " +
-                "amount REAL NOT NULL, " +
-                "tax REAL NOT NULL DEFAULT 0, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "tax DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "timestamp INTEGER NOT NULL)";
             
             stmt.execute(transactionsTable);
@@ -165,9 +180,9 @@ public class DatabaseManager {
                 "uuid VARCHAR(36) NOT NULL, " +
                 "player_name VARCHAR(16) NOT NULL, " +
                 "action VARCHAR(32) NOT NULL, " +
-                "amount DECIMAL(20,2) NOT NULL, " +
-                "balance_before DECIMAL(20,2) NOT NULL, " +
-                "balance_after DECIMAL(20,2) NOT NULL, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "balance_before DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "balance_after DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
                 "operator VARCHAR(36), " +
                 "operator_name VARCHAR(16), " +
                 "reason VARCHAR(255), " +
@@ -182,9 +197,9 @@ public class DatabaseManager {
                 "uuid VARCHAR(36) NOT NULL, " +
                 "player_name VARCHAR(16) NOT NULL, " +
                 "action VARCHAR(32) NOT NULL, " +
-                "amount REAL NOT NULL, " +
-                "balance_before REAL NOT NULL, " +
-                "balance_after REAL NOT NULL, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "balance_before DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
+                "balance_after DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
                 "operator VARCHAR(36), " +
                 "operator_name VARCHAR(16), " +
                 "reason VARCHAR(255), " +
@@ -197,7 +212,7 @@ public class DatabaseManager {
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                 "receiver_uuid VARCHAR(36) NOT NULL, " +
                 "sender_name VARCHAR(16) NOT NULL, " +
-                "amount DECIMAL(20,2) NOT NULL, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
                 "timestamp BIGINT NOT NULL, " +
                 "notified TINYINT DEFAULT 0, " +
                 "INDEX idx_receiver (receiver_uuid)" +
@@ -207,7 +222,7 @@ public class DatabaseManager {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "receiver_uuid VARCHAR(36) NOT NULL, " +
                 "sender_name VARCHAR(16) NOT NULL, " +
-                "amount REAL NOT NULL, " +
+                "amount DECIMAL(20," + decimalPlaces + ") NOT NULL, " +
                 "timestamp INTEGER NOT NULL, " +
                 "notified INTEGER DEFAULT 0)";
             
@@ -217,22 +232,21 @@ public class DatabaseManager {
                 "CREATE TABLE IF NOT EXISTS " + tablePrefix + "non_player_accounts (" +
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                 "account_name VARCHAR(64) NOT NULL UNIQUE, " +
-                "balance DECIMAL(20,2) NOT NULL DEFAULT 0, " +
+                "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "created_at BIGINT NOT NULL, " +
-                "updated_at BIGINT NOT NULL, " +
-                "PRIMARY KEY (account_name)" +
+                "updated_at BIGINT NOT NULL" +
                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
                 :
                 "CREATE TABLE IF NOT EXISTS " + tablePrefix + "non_player_accounts (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "account_name VARCHAR(64) NOT NULL UNIQUE, " +
-                "balance REAL NOT NULL DEFAULT 0, " +
+                "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "created_at INTEGER NOT NULL, " +
                 "updated_at INTEGER NOT NULL)";
             
             stmt.execute(nonPlayerAccountsTable);
         } finally {
-            rwLock.writeLock().unlock();
+            writeLock.unlock();
         }
     }
     
@@ -254,16 +268,12 @@ public class DatabaseManager {
         }
     }
     
-    public ReentrantReadWriteLock.ReadLock getReadLock() {
-        return rwLock.readLock();
+    public Lock getReadLock() {
+        return isMySQL() ? NO_OP_LOCK : rwLock.readLock();
     }
     
-    public ReentrantReadWriteLock.WriteLock getWriteLock() {
-        return rwLock.writeLock();
-    }
-    
-    public ReentrantReadWriteLock getLock() {
-        return rwLock;
+    public Lock getWriteLock() {
+        return isMySQL() ? NO_OP_LOCK : rwLock.writeLock();
     }
     
     public String getTablePrefix() {

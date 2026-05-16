@@ -10,7 +10,10 @@ import org.bukkit.entity.Player;
 
 import java.io.*;
 import java.math.BigDecimal;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +26,9 @@ public class DebugManager {
     private boolean logToOnlineAdmins;
     private File debugLogFile;
     private PrintWriter logWriter;
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+    private final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    private final DateTimeFormatter fileDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private final Object writeLock = new Object();
     private final Set<String> enabledCategories = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<String, Long> timers = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, Long> counters = new ConcurrentHashMap<>();
@@ -68,25 +73,27 @@ public class DebugManager {
     }
     
     private void initLogFile() {
-        if (logWriter != null) {
-            logWriter.flush();
-            logWriter.close();
-            logWriter = null;
-        }
-        try {
-            File logFolder = new File(plugin.getDataFolder(), "debug");
-            if (!logFolder.exists()) {
-                logFolder.mkdirs();
+        synchronized (writeLock) {
+            if (logWriter != null) {
+                logWriter.flush();
+                logWriter.close();
+                logWriter = null;
             }
-            
-            String fileName = "debug_" + new SimpleDateFormat("yyyy-MM-dd").format(new Date()) + ".log";
-            debugLogFile = new File(logFolder, fileName);
-            
-            logWriter = new PrintWriter(new FileWriter(debugLogFile, true), true);
-            log("DebugManager", "DEBUG", "调试日志系统初始化完成");
-        } catch (IOException e) {
-            plugin.getLogger().warning(String.format("无法创建调试日志文件：%s", e.getMessage()));
-            logToFile = false;
+            try {
+                File logFolder = new File(plugin.getDataFolder(), "debug");
+                if (!logFolder.exists()) {
+                    logFolder.mkdirs();
+                }
+                
+                String fileName = "debug_" + fileDateFormat.format(LocalDateTime.now()) + ".log";
+                debugLogFile = new File(logFolder, fileName);
+                
+                logWriter = new PrintWriter(new FileWriter(debugLogFile, true), true);
+                log("DebugManager", "DEBUG", "调试日志系统初始化完成");
+            } catch (IOException e) {
+                plugin.getLogger().warning(String.format("无法创建调试日志文件：%s", e.getMessage()));
+                logToFile = false;
+            }
         }
     }
     
@@ -94,7 +101,7 @@ public class DebugManager {
         if (!enabled) return;
         if (!shouldLog(category)) return;
         
-        String timestamp = dateFormat.format(new Date());
+        String timestamp = dateFormat.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(System.currentTimeMillis()), ZoneId.systemDefault()));
         String threadName = Thread.currentThread().getName();
         String formattedMessage = String.format("[%s] [%s] [%s] [%s] %s", 
             timestamp, threadName, category, level, message);
@@ -109,7 +116,9 @@ public class DebugManager {
         }
         
         if (logToFile && logWriter != null) {
-            logWriter.println(formattedMessage);
+            synchronized (writeLock) {
+                logWriter.println(formattedMessage);
+            }
         }
         
         if (logToOnlineAdmins) {
@@ -348,10 +357,12 @@ public class DebugManager {
     }
     
     public void shutdown() {
-        if (logWriter != null) {
-            logWriter.flush();
-            logWriter.close();
-            logWriter = null;
+        synchronized (writeLock) {
+            if (logWriter != null) {
+                logWriter.flush();
+                logWriter.close();
+                logWriter = null;
+            }
         }
     }
     

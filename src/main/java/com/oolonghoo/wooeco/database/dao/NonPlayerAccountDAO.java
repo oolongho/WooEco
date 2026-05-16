@@ -2,7 +2,7 @@ package com.oolonghoo.wooeco.database.dao;
 
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.model.NonPlayerAccount;
-import com.oolonghoo.wooeco.util.MoneyFormat;
+import com.oolonghoo.wooeco.WooEco;
 
 import java.math.BigDecimal;
 import java.sql.*;
@@ -53,10 +53,11 @@ public class NonPlayerAccountDAO {
         if (databaseManager.isMySQL()) {
             sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
                   "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
-                  "ON DUPLICATE KEY UPDATE balance = ?";
+                  "ON DUPLICATE KEY UPDATE balance = VALUES(balance), updated_at = VALUES(updated_at)";
         } else {
-            sql = "INSERT OR REPLACE INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
+            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
+                  "ON CONFLICT(account_name) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at";
         }
         
         databaseManager.getWriteLock().lock();
@@ -68,10 +69,6 @@ public class NonPlayerAccountDAO {
             stmt.setBigDecimal(2, account.getBalance());
             stmt.setLong(3, now);
             stmt.setLong(4, now);
-            
-            if (databaseManager.isMySQL()) {
-                stmt.setBigDecimal(5, account.getBalance());
-            }
             
             stmt.executeUpdate();
         } finally {
@@ -86,8 +83,9 @@ public class NonPlayerAccountDAO {
                   "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
                   "ON DUPLICATE KEY UPDATE balance = ?, updated_at = ?";
         } else {
-            sql = "INSERT OR REPLACE INTO " + tablePrefix + "non_player_accounts " +
-                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?)";
+            sql = "INSERT INTO " + tablePrefix + "non_player_accounts " +
+                  "(account_name, balance, created_at, updated_at) VALUES (?, ?, ?, ?) " +
+                  "ON CONFLICT(account_name) DO UPDATE SET balance = excluded.balance, updated_at = excluded.updated_at";
         }
         
         databaseManager.getWriteLock().lock();
@@ -192,7 +190,7 @@ public class NonPlayerAccountDAO {
         try (Connection conn = databaseManager.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             
-            stmt.setBigDecimal(1, MoneyFormat.formatInput(newBalance));
+            stmt.setBigDecimal(1, WooEco.getInstance().getCurrencyConfig().formatInput(newBalance));
             stmt.setLong(2, System.currentTimeMillis());
             stmt.setString(3, accountName);
             stmt.executeUpdate();

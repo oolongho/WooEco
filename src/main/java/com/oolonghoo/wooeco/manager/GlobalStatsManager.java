@@ -2,7 +2,6 @@ package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
-import com.oolonghoo.wooeco.util.ThreadUtils;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -26,6 +25,7 @@ public class GlobalStatsManager {
     
     private volatile long lastRefreshTime = 0;
     private final long refreshInterval;
+    private volatile boolean initialized = false;
     
     public GlobalStatsManager(WooEco plugin) {
         this.plugin = plugin;
@@ -38,31 +38,38 @@ public class GlobalStatsManager {
     }
     
     public void refresh() {
-        ThreadUtils.runSmart(() -> {
-            try {
-                BigDecimal newTotalBalance = playerDAO.getTotalBalance();
-                BigDecimal newTotalIncome = playerDAO.getTotalDailyIncome();
-                int newAccountCount = playerDAO.countAccounts();
-                
-                totalBalance.set(newTotalBalance != null ? newTotalBalance : BigDecimal.ZERO);
-                totalIncome.set(newTotalIncome != null ? newTotalIncome : BigDecimal.ZERO);
-                accountCount.set(newAccountCount);
-                onlineCount.set(plugin.getServer().getOnlinePlayers().size());
-                lastRefreshTime = System.currentTimeMillis();
-                
-                if (plugin.getDebugManager() != null && plugin.getDebugManager().isEnabled()) {
-                    plugin.getDebugManager().log("CACHE", "INFO", 
-                        "统计刷新完成 - 总余额: " + totalBalance.get() + ", 账户数: " + accountCount.get());
-                }
-            } catch (SQLException e) {
-                plugin.getLogger().severe("刷新全局统计失败: " + e.getMessage());
+        try {
+            BigDecimal newTotalBalance = playerDAO.getTotalBalance();
+            BigDecimal newTotalIncome = playerDAO.getTotalDailyIncome();
+            int newAccountCount = playerDAO.countAccounts();
+            
+            totalBalance.set(newTotalBalance != null ? newTotalBalance : BigDecimal.ZERO);
+            totalIncome.set(newTotalIncome != null ? newTotalIncome : BigDecimal.ZERO);
+            accountCount.set(newAccountCount);
+            onlineCount.set(plugin.getServer().getOnlinePlayers().size());
+            lastRefreshTime = System.currentTimeMillis();
+            initialized = true;
+            
+            if (plugin.getDebugManager() != null && plugin.getDebugManager().isEnabled()) {
+                plugin.getDebugManager().log("CACHE", "INFO", 
+                    "统计刷新完成 - 总余额: " + totalBalance.get() + ", 账户数: " + accountCount.get());
             }
-        });
+        } catch (SQLException e) {
+            plugin.getLogger().severe("刷新全局统计失败: " + e.getMessage());
+        }
+    }
+    
+    public void refreshAsync() {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::refresh);
     }
     
     public void refreshIfNeeded() {
-        if (System.currentTimeMillis() - lastRefreshTime > refreshInterval) {
+        if (!initialized) {
             refresh();
+            return;
+        }
+        if (System.currentTimeMillis() - lastRefreshTime > refreshInterval) {
+            refreshAsync();
         }
     }
     

@@ -80,9 +80,7 @@ public class WooEco extends JavaPlugin {
         currencyConfig = new CurrencyConfig(this);
         currencyConfig.load();
         
-        com.oolonghoo.wooeco.util.MoneyFormat.initialize(this);
         com.oolonghoo.wooeco.util.AsyncUtils.initialize(this);
-        com.oolonghoo.wooeco.util.ThreadUtils.initialize(this);
         
         messageManager = new MessageManager(this);
         messageManager.initialize();
@@ -137,11 +135,13 @@ public class WooEco extends JavaPlugin {
             playerDataManager.saveAll();
         }
         
+        if (nonPlayerAccountManager != null) {
+            nonPlayerAccountManager.saveAll();
+        }
+        
         if (debugManager != null) {
             debugManager.shutdown();
         }
-        
-        com.oolonghoo.wooeco.util.ThreadUtils.shutdown();
         
         if (redisSyncManager != null) {
             redisSyncManager.shutdown();
@@ -191,7 +191,7 @@ public class WooEco extends JavaPlugin {
                 leaderboardManager.refreshCache();
             }
             if (globalStatsManager != null) {
-                globalStatsManager.refresh();
+                globalStatsManager.refreshAsync();
             }
         }, leaderboardRefresh, leaderboardRefresh);
         
@@ -234,9 +234,7 @@ public class WooEco extends JavaPlugin {
         configLoader.reload();
         databaseConfig.load();
         currencyConfig.load();
-        com.oolonghoo.wooeco.util.MoneyFormat.loadConfig();
         com.oolonghoo.wooeco.util.AsyncUtils.reload();
-        com.oolonghoo.wooeco.util.ThreadUtils.reload();
         messageManager.reload();
         if (debugManager != null) {
             debugManager.reload();

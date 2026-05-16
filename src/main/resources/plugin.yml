@@ -33,6 +33,9 @@ permissions:
   wooeco.use:
     description: Basic usage permission
     default: true
+  wooeco.help:
+    description: View help
+    default: true
   wooeco.balance:
     description: View own balance
     default: true

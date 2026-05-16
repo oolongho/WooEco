@@ -49,7 +49,7 @@ public class TopCommand extends AbstractSubCommandHandler {
         }
         
         int page = 1;
-        boolean incomeMode;
+        boolean incomeMode = false;
 
         if (args.length > 0) {
             String type = args[0].toLowerCase();

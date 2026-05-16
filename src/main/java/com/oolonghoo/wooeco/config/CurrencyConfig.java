@@ -109,12 +109,7 @@ public class CurrencyConfig {
         this.formatBalanceThresholds.put(1000000000.0, "b");
     }
     
-    public String format(double amount) {
-        if (integerBalance) {
-            amount = Math.round(amount);
-        }
-        
-        BigDecimal bd = BigDecimal.valueOf(amount);
+    public String format(BigDecimal amount) {
         RoundingMode rm = switch (roundingMode) {
             case 1 -> RoundingMode.UP;
             case 2 -> RoundingMode.HALF_UP;
@@ -122,40 +117,44 @@ public class CurrencyConfig {
         };
         
         int places = integerBalance ? 0 : decimalPlaces;
-        bd = bd.setScale(places, rm);
-        double roundedAmount = bd.doubleValue();
+        BigDecimal bd = amount.setScale(places, rm);
         
         if (formatBalanceEnabled) {
             for (Map.Entry<Double, String> entry : formatBalanceThresholds.entrySet()) {
-                if (roundedAmount >= entry.getKey()) {
-                    double divisor = entry.getKey();
-                    double abbreviated = roundedAmount / divisor;
-                    String suffix = entry.getValue();
-                    
-                    String formattedBalance;
-                    if (integerBalance) {
-                        formattedBalance = String.format("%.0f", abbreviated);
-                    } else {
-                        int abbrPlaces = Math.min(decimalPlaces, 2);
-                        formattedBalance = String.format("%." + abbrPlaces + "f", abbreviated);
-                    }
-                    return formattedBalance + suffix;
+                if (bd.compareTo(BigDecimal.valueOf(entry.getKey())) >= 0) {
+                    BigDecimal divisor = BigDecimal.valueOf(entry.getKey());
+                    int abbrPlaces = integerBalance ? 0 : Math.min(decimalPlaces, 2);
+                    BigDecimal abbreviated = bd.divide(divisor, abbrPlaces, rm);
+                    return abbreviated.setScale(abbrPlaces, rm).toPlainString() + entry.getValue();
                 }
             }
         }
         
-        String formattedBalance;
         if (integerBalance) {
-            formattedBalance = String.format("%.0f", roundedAmount);
-        } else {
-            formattedBalance = String.format("%,." + decimalPlaces + "f", roundedAmount);
+            return bd.toPlainString();
         }
         
-        if (!",".equals(thousandsSeparator)) {
-            formattedBalance = formattedBalance.replace(",", thousandsSeparator);
-        }
+        String plain = bd.toPlainString();
+        int dotIdx = plain.indexOf('.');
+        String intPart = dotIdx >= 0 ? plain.substring(0, dotIdx) : plain;
+        String decPart = dotIdx >= 0 ? plain.substring(dotIdx) : "";
         
-        return formattedBalance;
+        StringBuilder sb = new StringBuilder();
+        int len = intPart.length();
+        for (int i = 0; i < len; i++) {
+            if (i > 0 && (len - i) % 3 == 0) {
+                sb.append(thousandsSeparator);
+            }
+            sb.append(intPart.charAt(i));
+        }
+        return sb.append(decPart).toString();
+    }
+    
+    public String format(double amount) {
+        if (integerBalance) {
+            amount = Math.round(amount);
+        }
+        return format(BigDecimal.valueOf(amount));
     }
     
     public String formatWithColor(double amount) {
@@ -235,6 +234,24 @@ public class CurrencyConfig {
         return formatBalanceEnabled;
     }
     
+    public BigDecimal formatInput(BigDecimal amount) {
+        int places = integerBalance ? 0 : decimalPlaces;
+        RoundingMode rm = switch (roundingMode) {
+            case 1 -> RoundingMode.UP;
+            case 2 -> RoundingMode.HALF_UP;
+            default -> RoundingMode.DOWN;
+        };
+        return amount.setScale(places, rm);
+    }
+
+    public BigDecimal formatInput(double amount) {
+        return formatInput(BigDecimal.valueOf(amount));
+    }
+
+    public BigDecimal getMaxBalanceBigDecimal() {
+        return BigDecimal.valueOf(maxBalance);
+    }
+
     public TreeMap<Double, String> getFormatBalanceThresholds() {
         return formatBalanceThresholds;
     }

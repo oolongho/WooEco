@@ -4,7 +4,6 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.util.AsyncUtils;
-import com.oolonghoo.wooeco.util.ThreadUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -231,7 +230,7 @@ public class PlayerDataManager {
         account.setLastIncomeReset(getTodayStart());
         
         try {
-            playerDAO.createAccount(account);
+            playerDAO.saveOrUpdateAccount(account);
             plugin.getLogger().info(String.format("为新玩家创建账户：%s", playerName));
             return account;
         } catch (SQLException e) {
@@ -284,7 +283,7 @@ public class PlayerDataManager {
     }
     
     public void saveAccount(PlayerAccount account) {
-        ThreadUtils.runSmart(() -> {
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 playerDAO.saveOrUpdateAccount(account);
             } catch (SQLException e) {
@@ -441,10 +440,17 @@ public class PlayerDataManager {
     }
     
     public void invalidateAllCache() {
+        invalidateAllCache(true);
+    }
+    
+    public void invalidateAllCache(boolean saveDirty) {
         if (disableCache) {
             return;
         }
         
+        if (saveDirty) {
+            saveAll();
+        }
         onlineCache.clear();
         nameIndex.clear();
     }
