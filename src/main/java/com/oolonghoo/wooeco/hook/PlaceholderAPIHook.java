@@ -129,7 +129,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         
         if (identifier.equals("top_rank")) {
             if (player == null) return "-";
-            return String.valueOf(getPlayerRank(player.getUniqueId(), IncomePeriod.DAY));
+            return String.valueOf(getPlayerRank(player.getUniqueId()));
         }
         
         if (identifier.startsWith("top_rank_")) {
@@ -138,7 +138,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             if (pdm == null) return "-";
             PlayerAccount account = pdm.getAccount(playerName);
             if (account == null) return "-";
-            return String.valueOf(getPlayerRank(account.getUuid(), IncomePeriod.DAY));
+            return String.valueOf(getPlayerRank(account.getUuid()));
         }
         
         if (identifier.startsWith("top_player_")) {
@@ -233,11 +233,11 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         return null;
     }
     
-    private int getPlayerRank(UUID uuid, IncomePeriod period) {
+    private int getPlayerRank(UUID uuid) {
         LeaderboardManager lm = plugin.getLeaderboardManager();
         if (lm == null) return -1;
         
-        return lm.getIncomeRankByPeriod(period, uuid);
+        return lm.getBalanceRank(uuid);
     }
     
     private String getTopPlayer(String indexStr, IncomePeriod period) {

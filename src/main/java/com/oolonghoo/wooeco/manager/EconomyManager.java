@@ -12,9 +12,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
+import org.bukkit.event.Event;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
@@ -36,6 +38,23 @@ public class EconomyManager {
         this.plugin = plugin;
         this.playerDataManager = plugin.getPlayerDataManager();
         this.logManager = plugin.getLogManager();
+    }
+    
+    private void callEventOnMain(Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+        CountDownLatch latch = new CountDownLatch(1);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            Bukkit.getPluginManager().callEvent(event);
+            latch.countDown();
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
     
     public double getBalance(UUID uuid) {
@@ -94,15 +113,12 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount, reason);
-        Bukkit.getPluginManager().callEvent(event);
+        callEventOnMain(event);
         plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
         
         if (event.isCancelled()) {
             synchronized (account) {
-                BigDecimal current = account.getBalance();
-                if (current.compareTo(newBalance) == 0) {
-                    account.setBalance(oldBalance);
-                }
+                account.setBalance(oldBalance);
             }
             return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
@@ -128,7 +144,7 @@ public class EconomyManager {
         
         logManager.logBalanceChange(uuid, account.getPlayerName(), "DEPOSIT", 
                                     amount, oldBalance, 
-                                    newBalance, operator, operatorName, null);
+                                    newBalance, operator, operatorName, reason != null ? reason.name() : null);
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
@@ -169,14 +185,11 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.negate(), reason);
-        Bukkit.getPluginManager().callEvent(event);
+        callEventOnMain(event);
         
         if (event.isCancelled()) {
             synchronized (account) {
-                BigDecimal current = account.getBalance();
-                if (current.compareTo(newBalance) == 0) {
-                    account.setBalance(oldBalance);
-                }
+                account.setBalance(oldBalance);
             }
             return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
@@ -194,7 +207,7 @@ public class EconomyManager {
         
         logManager.logBalanceChange(uuid, account.getPlayerName(), "WITHDRAW", 
                                     amount, oldBalance, 
-                                    newBalance, operator, operatorName, null);
+                                    newBalance, operator, operatorName, reason != null ? reason.name() : null);
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
@@ -235,14 +248,11 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.subtract(oldBalance), reason);
-        Bukkit.getPluginManager().callEvent(event);
+        callEventOnMain(event);
         
         if (event.isCancelled()) {
             synchronized (account) {
-                BigDecimal current = account.getBalance();
-                if (current.compareTo(newBalance) == 0) {
-                    account.setBalance(oldBalance);
-                }
+                account.setBalance(oldBalance);
             }
             return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
         }
@@ -261,7 +271,7 @@ public class EconomyManager {
         logManager.logBalanceChange(uuid, account.getPlayerName(), "SET", 
                                     amount.subtract(oldBalance).abs(), 
                                     oldBalance, newBalance, 
-                                    operator, operatorName, null);
+                                    operator, operatorName, reason != null ? reason.name() : null);
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         

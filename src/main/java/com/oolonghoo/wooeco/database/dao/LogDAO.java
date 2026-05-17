@@ -2,6 +2,7 @@ package com.oolonghoo.wooeco.database.dao;
 
 import com.oolonghoo.wooeco.database.DatabaseManager;
 import com.oolonghoo.wooeco.model.EconomyLog;
+import com.oolonghoo.wooeco.model.PlayerAccount;
 
 import java.math.BigDecimal;
 import java.sql.*;

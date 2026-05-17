@@ -3,8 +3,10 @@ package com.oolonghoo.wooeco.manager;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
 
 import org.bukkit.Bukkit;
+import org.bukkit.event.Event;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
@@ -31,6 +33,23 @@ public class TransactionManager {
         this.economyManager = plugin.getEconomyManager();
         this.taxManager = plugin.getTaxManager();
         this.transactionDAO = plugin.getDatabaseManager().getTransactionDAO();
+    }
+    
+    private void callEventOnMain(Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+        CountDownLatch latch = new CountDownLatch(1);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            Bukkit.getPluginManager().callEvent(event);
+            latch.countDown();
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
     
     public TransactionResult transfer(UUID senderUuid, UUID receiverUuid, double amount) {
@@ -79,7 +98,7 @@ public class TransactionManager {
             receiverUuid, receiverAccount.getPlayerName(),
             amount, tax
         );
-        Bukkit.getPluginManager().callEvent(event);
+        callEventOnMain(event);
         
         if (event.isCancelled()) {
             return new TransactionResult(false, "交易被取消", BigDecimal.ZERO, BigDecimal.ZERO);
