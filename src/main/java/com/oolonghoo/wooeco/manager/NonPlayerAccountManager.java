@@ -166,6 +166,7 @@ public class NonPlayerAccountManager {
         }
         
         account.deposit(amount);
+        account.setBalance(plugin.getCurrencyConfig().formatInput(account.getBalance()));
         saveAccountAsync(account);
         return true;
     }
@@ -181,6 +182,7 @@ public class NonPlayerAccountManager {
         }
         
         account.withdraw(amount);
+        account.setBalance(plugin.getCurrencyConfig().formatInput(account.getBalance()));
         saveAccountAsync(account);
         return true;
     }
@@ -200,7 +202,7 @@ public class NonPlayerAccountManager {
             return false;
         }
         
-        account.setBalance(amount);
+        account.setBalance(plugin.getCurrencyConfig().formatInput(amount));
         saveAccountAsync(account);
         return true;
     }

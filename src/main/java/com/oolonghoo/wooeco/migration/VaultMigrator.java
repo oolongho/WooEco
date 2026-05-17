@@ -61,7 +61,7 @@ public class VaultMigrator {
                         PlayerAccount account = plugin.getPlayerDataManager().getOrCreateAccount(
                             player.getUniqueId(), player.getName());
                         if (account != null) {
-                            account.setBalance(balanceDecimal);
+                            account.setBalance(plugin.getCurrencyConfig().formatInput(balanceDecimal));
                             playerDAO.saveOrUpdateAccount(account);
                         }
                     }
@@ -92,7 +92,7 @@ public class VaultMigrator {
                     if (resp.type == EconomyResponse.ResponseType.SUCCESS) {
                         if (!dryRun) {
                             long now = System.currentTimeMillis();
-                            NonPlayerAccount account = new NonPlayerAccount(bank, BigDecimal.valueOf(resp.balance), now, now);
+                            NonPlayerAccount account = new NonPlayerAccount(bank, plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(resp.balance)), now, now);
                             npDAO.createAccount(account);
                         }
                         result.incrementMigratedNonPlayerAccount();

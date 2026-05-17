@@ -2,8 +2,14 @@ package com.oolonghoo.wooeco.util;
 
 import com.oolonghoo.wooeco.WooEco;
 
+import org.bukkit.Bukkit;
+import org.bukkit.event.Event;
+
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
@@ -18,6 +24,7 @@ public class AsyncUtils {
     
     private static WooEco plugin;
     private static int defaultTimeout = 3;
+    private static ExecutorService executor;
     
     public static void initialize(WooEco wooEco) {
         plugin = wooEco;
@@ -25,12 +32,27 @@ public class AsyncUtils {
         if (defaultTimeout < 1) {
             defaultTimeout = 3;
         }
+        int poolSize = plugin.getConfig().getInt("performance.async-pool-size", 4);
+        if (poolSize < 1) {
+            poolSize = 4;
+        }
+        executor = Executors.newFixedThreadPool(poolSize, r -> {
+            Thread t = new Thread(r, "WooEco-Async");
+            t.setDaemon(true);
+            return t;
+        });
     }
     
     public static void reload() {
         defaultTimeout = plugin.getConfig().getInt("performance.async-timeout", 3);
         if (defaultTimeout < 1) {
             defaultTimeout = 3;
+        }
+    }
+    
+    public static void shutdown() {
+        if (executor != null) {
+            executor.shutdownNow();
         }
     }
     
@@ -44,7 +66,7 @@ public class AsyncUtils {
     
     public static <T> T supplyAsyncWithTimeout(Supplier<T> supplier, T defaultValue, int timeoutSeconds) {
         try {
-            return CompletableFuture.supplyAsync(supplier)
+            return CompletableFuture.supplyAsync(supplier, executor)
                     .get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -61,7 +83,7 @@ public class AsyncUtils {
     
     public static void runAsyncWithTimeout(Runnable task, int timeoutSeconds) {
         try {
-            CompletableFuture.runAsync(task)
+            CompletableFuture.runAsync(task, executor)
                     .get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -74,11 +96,11 @@ public class AsyncUtils {
     }
     
     public static <T> CompletableFuture<T> supplyAsync(Supplier<T> supplier) {
-        return CompletableFuture.supplyAsync(supplier);
+        return CompletableFuture.supplyAsync(supplier, executor);
     }
     
     public static CompletableFuture<Void> runAsync(Runnable task) {
-        return CompletableFuture.runAsync(task);
+        return CompletableFuture.runAsync(task, executor);
     }
     
     public static boolean isMainThread() {
@@ -97,5 +119,22 @@ public class AsyncUtils {
             return;
         }
         plugin.getServer().getScheduler().runTaskLater(plugin, task, delayTicks);
+    }
+    
+    public static void callEventOnMain(Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+        CountDownLatch latch = new CountDownLatch(1);
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            Bukkit.getPluginManager().callEvent(event);
+            latch.countDown();
+        });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

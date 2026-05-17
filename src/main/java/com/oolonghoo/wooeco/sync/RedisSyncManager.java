@@ -8,7 +8,12 @@ import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 import redis.clients.jedis.JedisPubSub;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.UUID;
 
 /**
@@ -169,7 +174,7 @@ public class RedisSyncManager {
         PlayerAccount account = plugin.getPlayerDataManager().getOnlineAccount(uuid);
         
         if (account != null) {
-            BigDecimal newBalance = new BigDecimal(sync.getBalance());
+            BigDecimal newBalance = plugin.getCurrencyConfig().formatInput(new BigDecimal(sync.getBalance()));
             synchronized (account) {
                 account.setBalance(newBalance);
             }
@@ -188,24 +193,43 @@ public class RedisSyncManager {
     
     /**
      * 使用安全的分隔符格式序列化，避免 Java 反序列化漏洞 (RCE)
-     * 格式: type|serverId|uuid|playerName|balance|dailyIncome|timestamp
+     * 格式: type|serverId|uuid|playerName|balance|dailyIncome|timestamp|hmac
      */
     private String serialize(SyncMessage message) {
         String playerName = message.getPlayerName() != null ? message.getPlayerName().replace("|", "_") : "";
-        return message.getType().name() + "|" +
+        String payload = message.getType().name() + "|" +
                 message.getServerId().replace("|", "_") + "|" +
                 message.getUuid() + "|" +
                 playerName + "|" +
                 message.getBalance() + "|" +
                 message.getDailyIncome() + "|" +
                 message.getTimestamp();
+        String authKey = config.getRedisAuthKey();
+        if (authKey != null && !authKey.isEmpty()) {
+            payload += "|" + hmacSha256(payload, authKey);
+        }
+        return payload;
     }
     
     private SyncMessage deserialize(String data) {
         String[] parts = data.split("\\|", -1);
-        if (parts.length < 7) {
+        String authKey = config.getRedisAuthKey();
+        boolean hasAuth = authKey != null && !authKey.isEmpty();
+        int expectedParts = hasAuth ? 8 : 7;
+        
+        if (parts.length < expectedParts) {
             throw new IllegalArgumentException("无效的同步消息格式");
         }
+        
+        if (hasAuth) {
+            String payload = data.substring(0, data.lastIndexOf('|'));
+            String signature = parts[parts.length - 1];
+            String expected = hmacSha256(payload, authKey);
+            if (!MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8))) {
+                throw new IllegalArgumentException("同步消息签名验证失败");
+            }
+        }
+        
         SyncType type;
         try {
             type = SyncType.valueOf(parts[0]);
@@ -224,6 +248,17 @@ public class RedisSyncManager {
         String dailyIncome = parts[5];
         long timestamp = Long.parseLong(parts[6]);
         return new SyncMessage(type, serverId, uuid, playerName, balance, dailyIncome, timestamp);
+    }
+    
+    private String hmacSha256(String data, String key) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] hash = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            return Base64.getEncoder().encodeToString(hash);
+        } catch (Exception e) {
+            throw new RuntimeException("HMAC 计算失败", e);
+        }
     }
     
     public void reload() {

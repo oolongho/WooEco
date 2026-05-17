@@ -1,6 +1,7 @@
 package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.config.UUIDMode;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.util.AsyncUtils;
@@ -70,11 +71,25 @@ public class PlayerDataManager {
         
         if (account == null) {
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-            String name = offlinePlayer.getName();
-            if (name == null) {
-                name = uuid.toString().substring(0, 8);
+            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                String name = offlinePlayer.getName();
+                if (name == null) {
+                    name = uuid.toString().substring(0, 8);
+                }
+                account = createNewAccount(uuid, name);
+            } else if (plugin.getDatabaseConfig().getUuidMode() == UUIDMode.SEMIONLINE) {
+                UUID offlineUuid = plugin.getDatabaseManager().getUUIDMappingDAO().getOfflineUUID(uuid);
+                if (offlineUuid != null) {
+                    OfflinePlayer mappedPlayer = Bukkit.getOfflinePlayer(offlineUuid);
+                    if (mappedPlayer.hasPlayedBefore() || mappedPlayer.isOnline()) {
+                        String name = mappedPlayer.getName();
+                        if (name == null) {
+                            name = uuid.toString().substring(0, 8);
+                        }
+                        account = createNewAccount(uuid, name);
+                    }
+                }
             }
-            account = createNewAccount(uuid, name);
             if (account == null) {
                 return null;
             }
@@ -109,11 +124,25 @@ public class PlayerDataManager {
         
         if (account == null) {
             OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-            String name = offlinePlayer.getName();
-            if (name == null) {
-                name = uuid.toString().substring(0, 8);
+            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                String name = offlinePlayer.getName();
+                if (name == null) {
+                    name = uuid.toString().substring(0, 8);
+                }
+                account = createNewAccount(uuid, name);
+            } else if (plugin.getDatabaseConfig().getUuidMode() == UUIDMode.SEMIONLINE) {
+                UUID offlineUuid = plugin.getDatabaseManager().getUUIDMappingDAO().getOfflineUUID(uuid);
+                if (offlineUuid != null) {
+                    OfflinePlayer mappedPlayer = Bukkit.getOfflinePlayer(offlineUuid);
+                    if (mappedPlayer.hasPlayedBefore() || mappedPlayer.isOnline()) {
+                        String name = mappedPlayer.getName();
+                        if (name == null) {
+                            name = uuid.toString().substring(0, 8);
+                        }
+                        account = createNewAccount(uuid, name);
+                    }
+                }
             }
-            account = createNewAccount(uuid, name);
             if (account == null) {
                 return null;
             }
@@ -171,7 +200,8 @@ public class PlayerDataManager {
         
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
         if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-            return getAccount(offlinePlayer.getUniqueId());
+            UUID uuid = plugin.getUuidHandler().getUUID(playerName);
+            return getAccount(uuid);
         }
         
         return null;
@@ -195,7 +225,8 @@ public class PlayerDataManager {
         
         OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
         if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-            return getAccount(offlinePlayer.getUniqueId());
+            UUID uuid = plugin.getUuidHandler().getUUID(playerName);
+            return getAccount(uuid);
         }
         
         return null;
@@ -226,7 +257,7 @@ public class PlayerDataManager {
     
     public PlayerAccount createNewAccount(UUID uuid, String playerName) {
         PlayerAccount account = new PlayerAccount(uuid, playerName);
-        account.setBalance(plugin.getCurrencyConfig().getStartingBalance());
+        account.setBalance(plugin.getCurrencyConfig().formatInput(plugin.getCurrencyConfig().getStartingBalance()));
         account.setLastIncomeReset(getTodayStart());
         
         try {

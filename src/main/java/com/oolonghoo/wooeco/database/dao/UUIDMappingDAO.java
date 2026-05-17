@@ -37,6 +37,24 @@ public class UUIDMappingDAO {
         return null;
     }
 
+    public UUID getOfflineUUID(UUID onlineUuid) {
+        String sql = "SELECT offline_uuid FROM " + tablePrefix + "uuid_mapping WHERE online_uuid = ?";
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, onlineUuid.toString());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return UUID.fromString(rs.getString("offline_uuid"));
+            }
+        } catch (SQLException e) {
+            dbManager.getPlugin().getLogger().warning("查询UUID映射失败: " + e.getMessage());
+        } finally {
+            dbManager.getReadLock().unlock();
+        }
+        return null;
+    }
+
     public void saveMapping(UUID offlineUuid, UUID onlineUuid, String playerName) {
         String sql;
         if (dbManager.isMySQL()) {

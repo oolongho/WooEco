@@ -12,16 +12,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
-import org.bukkit.event.Event;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import com.oolonghoo.wooeco.util.AsyncUtils;
 
 /**
  * 经济管理器
@@ -38,23 +37,6 @@ public class EconomyManager {
         this.plugin = plugin;
         this.playerDataManager = plugin.getPlayerDataManager();
         this.logManager = plugin.getLogManager();
-    }
-    
-    private void callEventOnMain(Event event) {
-        if (Bukkit.isPrimaryThread()) {
-            Bukkit.getPluginManager().callEvent(event);
-            return;
-        }
-        CountDownLatch latch = new CountDownLatch(1);
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            Bukkit.getPluginManager().callEvent(event);
-            latch.countDown();
-        });
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
     
     public double getBalance(UUID uuid) {
@@ -113,7 +95,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount, reason);
-        callEventOnMain(event);
+        AsyncUtils.callEventOnMain(event);
         plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
         
         if (event.isCancelled()) {
@@ -124,13 +106,11 @@ public class EconomyManager {
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        if (eventBalance.compareTo(newBalance) != 0) {
-            eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-            synchronized (account) {
-                account.setBalance(eventBalance);
-            }
-            newBalance = eventBalance;
+        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
+        synchronized (account) {
+            account.setBalance(eventBalance);
         }
+        newBalance = eventBalance;
         
         if (reason == BalanceChangeReason.PAYMENT_RECEIVED) {
             BigDecimal actualChange = newBalance.subtract(oldBalance);
@@ -185,7 +165,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.negate(), reason);
-        callEventOnMain(event);
+        AsyncUtils.callEventOnMain(event);
         
         if (event.isCancelled()) {
             synchronized (account) {
@@ -195,13 +175,11 @@ public class EconomyManager {
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        if (eventBalance.compareTo(newBalance) != 0) {
-            eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-            synchronized (account) {
-                account.setBalance(eventBalance);
-            }
-            newBalance = eventBalance;
+        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
+        synchronized (account) {
+            account.setBalance(eventBalance);
         }
+        newBalance = eventBalance;
         
         playerDataManager.saveAccount(account);
         
@@ -248,7 +226,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.subtract(oldBalance), reason);
-        callEventOnMain(event);
+        AsyncUtils.callEventOnMain(event);
         
         if (event.isCancelled()) {
             synchronized (account) {
@@ -258,13 +236,11 @@ public class EconomyManager {
         }
         
         BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        if (eventBalance.compareTo(newBalance) != 0) {
-            eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-            synchronized (account) {
-                account.setBalance(eventBalance);
-            }
-            newBalance = eventBalance;
+        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
+        synchronized (account) {
+            account.setBalance(eventBalance);
         }
+        newBalance = eventBalance;
         
         playerDataManager.saveAccount(account);
         
@@ -338,75 +314,83 @@ public class EconomyManager {
                 .toEpochMilli();
     }
     
+    private static class BatchContext {
+        final List<UUID> allowedUuids = new ArrayList<>();
+        final Map<UUID, BigDecimal> oldBalances = new HashMap<>();
+        final Map<UUID, String> nameMap = new HashMap<>();
+        int totalAccounts;
+    }
+    
+    private BatchContext collectAllowedAccounts(Collection<PlayerAccount> accounts, BigDecimal amount,
+                                                BalanceChangeReason reason, boolean isWithdraw, boolean isSet) {
+        BatchContext ctx = new BatchContext();
+        ctx.totalAccounts = accounts.size();
+        
+        for (PlayerAccount account : accounts) {
+            UUID uuid = account.getUuid();
+            BigDecimal oldBalance = account.getBalance();
+            
+            if (isWithdraw && oldBalance.compareTo(amount) < 0) {
+                continue;
+            }
+            
+            BigDecimal newBalance = isSet ? amount : (isWithdraw ? oldBalance.subtract(amount) : oldBalance.add(amount));
+            BigDecimal changeAmount = isSet ? amount.subtract(oldBalance) : (isWithdraw ? amount.negate() : amount);
+            
+            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
+            AsyncUtils.callEventOnMain(event);
+            
+            if (!event.isCancelled()) {
+                ctx.allowedUuids.add(uuid);
+                ctx.oldBalances.put(uuid, oldBalance);
+                ctx.nameMap.put(uuid, account.getPlayerName());
+            }
+        }
+        return ctx;
+    }
+    
+    private void processBatchResult(BatchContext ctx, BigDecimal amount, String logType,
+                                     boolean isWithdraw, boolean isSet, String operator, String operatorName) {
+        playerDataManager.invalidateAllCache(false);
+        for (UUID uuid : ctx.allowedUuids) {
+            BigDecimal oldBalance = ctx.oldBalances.get(uuid);
+            BigDecimal newBalance = isSet ? amount : (isWithdraw ? oldBalance.subtract(amount) : oldBalance.add(amount));
+            newBalance = plugin.getCurrencyConfig().formatInput(newBalance);
+            String playerName = ctx.nameMap.get(uuid);
+            
+            logManager.logBalanceChange(uuid, playerName, logType,
+                isSet ? amount.subtract(oldBalance).abs() : amount,
+                oldBalance, newBalance, operator, operatorName, null);
+            
+            if (plugin.getRedisSyncManager() != null) {
+                plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
+            }
+        }
+    }
+    
     public BatchResult depositAll(BigDecimal amount, boolean onlineOnly, String operator, String operatorName) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return new BatchResult(0, 0, amount);
         }
         
-        Collection<PlayerAccount> accounts;
-        if (onlineOnly) {
-            accounts = playerDataManager.getOnlineAccounts();
-        } else {
-            accounts = playerDataManager.getAllAccounts();
-        }
-        
-        int totalAccounts = accounts.size();
-        if (totalAccounts == 0) {
+        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+        if (accounts.isEmpty()) {
             return new BatchResult(0, 0, amount);
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount account : accounts) {
-            UUID uuid = account.getUuid();
-            BigDecimal oldBalance = account.getBalance();
-            BigDecimal newBalance = oldBalance.add(amount);
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(
-                uuid, oldBalance, newBalance, amount, BalanceChangeReason.ADMIN
-            );
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, account.getPlayerName());
-            }
-        }
-        
-        if (allowedUuids.isEmpty()) {
-            return new BatchResult(0, totalAccounts, amount);
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, false);
+        if (ctx.allowedUuids.isEmpty()) {
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
         
         try {
             playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                .depositAllBatch(amount, true, allowedUuids);
-            
-            playerDataManager.invalidateAllCache(false);
-            
-            for (UUID uuid : allowedUuids) {
-                BigDecimal oldBalance = oldBalances.get(uuid);
-                BigDecimal newBalance = oldBalance.add(amount);
-                String playerName = nameMap.get(uuid);
-                
-                logManager.logBalanceChange(
-                    uuid, playerName, "DEPOSIT_ALL", 
-                    amount, oldBalance, newBalance,
-                    operator, operatorName, null
-                );
-                
-                if (plugin.getRedisSyncManager() != null) {
-                    plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
-                }
-            }
-            
-            return new BatchResult(updated, totalAccounts - updated, amount);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, true, ctx.allowedUuids);
+            processBatchResult(ctx, amount, "DEPOSIT_ALL", false, false, operator, operatorName);
+            return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("批量存款失败：%s", e.getMessage()));
-            return new BatchResult(0, totalAccounts, amount);
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
     }
     
@@ -415,75 +399,24 @@ public class EconomyManager {
             return new BatchResult(0, 0, amount);
         }
         
-        Collection<PlayerAccount> accounts;
-        if (onlineOnly) {
-            accounts = playerDataManager.getOnlineAccounts();
-        } else {
-            accounts = playerDataManager.getAllAccounts();
-        }
-        
-        int totalAccounts = accounts.size();
-        if (totalAccounts == 0) {
+        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+        if (accounts.isEmpty()) {
             return new BatchResult(0, 0, amount);
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount account : accounts) {
-            UUID uuid = account.getUuid();
-            BigDecimal oldBalance = account.getBalance();
-            
-            if (oldBalance.compareTo(amount) < 0) {
-                continue;
-            }
-            
-            BigDecimal newBalance = oldBalance.subtract(amount);
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(
-                uuid, oldBalance, newBalance, amount.negate(), BalanceChangeReason.ADMIN
-            );
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, account.getPlayerName());
-            }
-        }
-        
-        if (allowedUuids.isEmpty()) {
-            return new BatchResult(0, totalAccounts, amount);
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, true, false);
+        if (ctx.allowedUuids.isEmpty()) {
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
         
         try {
             playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                .withdrawAllBatch(amount, true, allowedUuids);
-            
-            playerDataManager.invalidateAllCache(false);
-            
-            for (UUID uuid : allowedUuids) {
-                BigDecimal oldBalance = oldBalances.get(uuid);
-                BigDecimal newBalance = oldBalance.subtract(amount);
-                String playerName = nameMap.get(uuid);
-                
-                logManager.logBalanceChange(
-                    uuid, playerName, "WITHDRAW_ALL",
-                    amount, oldBalance, newBalance,
-                    operator, operatorName, null
-                );
-                
-                if (plugin.getRedisSyncManager() != null) {
-                    plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
-                }
-            }
-            
-            return new BatchResult(updated, totalAccounts - updated, amount);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, true, ctx.allowedUuids);
+            processBatchResult(ctx, amount, "WITHDRAW_ALL", true, false, operator, operatorName);
+            return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("批量扣款失败：%s", e.getMessage()));
-            return new BatchResult(0, totalAccounts, amount);
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
     }
     
@@ -492,68 +425,24 @@ public class EconomyManager {
             return new BatchResult(0, 0, amount);
         }
         
-        Collection<PlayerAccount> accounts;
-        if (onlineOnly) {
-            accounts = playerDataManager.getOnlineAccounts();
-        } else {
-            accounts = playerDataManager.getAllAccounts();
-        }
-        
-        int totalAccounts = accounts.size();
-        if (totalAccounts == 0) {
+        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
+        if (accounts.isEmpty()) {
             return new BatchResult(0, 0, amount);
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount account : accounts) {
-            UUID uuid = account.getUuid();
-            BigDecimal oldBalance = account.getBalance();
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(
-                uuid, oldBalance, amount, amount.subtract(oldBalance), BalanceChangeReason.ADMIN
-            );
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, account.getPlayerName());
-            }
-        }
-        
-        if (allowedUuids.isEmpty()) {
-            return new BatchResult(0, totalAccounts, amount);
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, true);
+        if (ctx.allowedUuids.isEmpty()) {
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
         
         try {
             playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                .setAllBatch(amount, true, allowedUuids);
-            
-            playerDataManager.invalidateAllCache(false);
-            
-            for (UUID uuid : allowedUuids) {
-                BigDecimal oldBalance = oldBalances.get(uuid);
-                String playerName = nameMap.get(uuid);
-                
-                logManager.logBalanceChange(
-                    uuid, playerName, "SET_ALL",
-                    amount.subtract(oldBalance).abs(), oldBalance, amount,
-                    operator, operatorName, null
-                );
-                
-                if (plugin.getRedisSyncManager() != null) {
-                    plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, amount);
-                }
-            }
-            
-            return new BatchResult(updated, totalAccounts - updated, amount);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, true, ctx.allowedUuids);
+            processBatchResult(ctx, amount, "SET_ALL", false, true, operator, operatorName);
+            return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
-            return new BatchResult(0, totalAccounts, amount);
+            return new BatchResult(0, ctx.totalAccounts, amount);
         }
     }
     
@@ -565,57 +454,23 @@ public class EconomyManager {
             return;
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount a : accounts) {
-            if (a == null) continue;
-            UUID uuid = a.getUuid();
-            if (uuid == null) continue;
-            BigDecimal oldBalance = a.getBalance();
-            BigDecimal newBalance = oldBalance.add(amount);
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount, BalanceChangeReason.ADMIN);
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, a.getPlayerName());
-            }
-        }
-        
-        int totalAccounts = accounts.size();
-        if (allowedUuids.isEmpty()) {
-            callback.accept(new BatchResult(0, totalAccounts, amount));
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, false);
+        if (ctx.allowedUuids.isEmpty()) {
+            callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
         
         playerDataManager.saveAll();
-        
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                    .depositAllBatch(amount, true, allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, true, ctx.allowedUuids);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    playerDataManager.invalidateAllCache(false);
-                    for (UUID uuid : allowedUuids) {
-                        BigDecimal oldBalance = oldBalances.get(uuid);
-                        BigDecimal newBalance = oldBalance.add(amount);
-                        String playerName = nameMap.get(uuid);
-                        logManager.logBalanceChange(uuid, playerName, "DEPOSIT_ALL", amount, oldBalance, newBalance, operator, operatorName, null);
-                        if (plugin.getRedisSyncManager() != null) {
-                            plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
-                        }
-                    }
-                    callback.accept(new BatchResult(updated, totalAccounts - updated, amount));
+                    processBatchResult(ctx, amount, "DEPOSIT_ALL", false, false, operator, operatorName);
+                    callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量存款失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    callback.accept(new BatchResult(0, totalAccounts, amount));
-                });
+                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }
@@ -628,58 +483,23 @@ public class EconomyManager {
             return;
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount a : accounts) {
-            if (a == null) continue;
-            UUID uuid = a.getUuid();
-            if (uuid == null) continue;
-            BigDecimal oldBalance = a.getBalance();
-            if (oldBalance.compareTo(amount) < 0) continue;
-            BigDecimal newBalance = oldBalance.subtract(amount);
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.negate(), BalanceChangeReason.ADMIN);
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, a.getPlayerName());
-            }
-        }
-        
-        int totalAccounts = accounts.size();
-        if (allowedUuids.isEmpty()) {
-            callback.accept(new BatchResult(0, totalAccounts, amount));
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, true, false);
+        if (ctx.allowedUuids.isEmpty()) {
+            callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
         
         playerDataManager.saveAll();
-        
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                    .withdrawAllBatch(amount, true, allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, true, ctx.allowedUuids);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    playerDataManager.invalidateAllCache(false);
-                    for (UUID uuid : allowedUuids) {
-                        BigDecimal oldBalance = oldBalances.get(uuid);
-                        BigDecimal newBalance = oldBalance.subtract(amount);
-                        String playerName = nameMap.get(uuid);
-                        logManager.logBalanceChange(uuid, playerName, "WITHDRAW_ALL", amount, oldBalance, newBalance, operator, operatorName, null);
-                        if (plugin.getRedisSyncManager() != null) {
-                            plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
-                        }
-                    }
-                    callback.accept(new BatchResult(updated, totalAccounts - updated, amount));
+                    processBatchResult(ctx, amount, "WITHDRAW_ALL", true, false, operator, operatorName);
+                    callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量扣款失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    callback.accept(new BatchResult(0, totalAccounts, amount));
-                });
+                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }
@@ -692,55 +512,23 @@ public class EconomyManager {
             return;
         }
         
-        List<UUID> allowedUuids = new ArrayList<>();
-        Map<UUID, BigDecimal> oldBalances = new HashMap<>();
-        Map<UUID, String> nameMap = new HashMap<>();
-        
-        for (PlayerAccount a : accounts) {
-            if (a == null) continue;
-            UUID uuid = a.getUuid();
-            if (uuid == null) continue;
-            BigDecimal oldBalance = a.getBalance();
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, amount, amount.subtract(oldBalance), BalanceChangeReason.ADMIN);
-            Bukkit.getPluginManager().callEvent(event);
-            
-            if (!event.isCancelled()) {
-                allowedUuids.add(uuid);
-                oldBalances.put(uuid, oldBalance);
-                nameMap.put(uuid, a.getPlayerName());
-            }
-        }
-        
-        int totalAccounts = accounts.size();
-        if (allowedUuids.isEmpty()) {
-            callback.accept(new BatchResult(0, totalAccounts, amount));
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, true);
+        if (ctx.allowedUuids.isEmpty()) {
+            callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
         
         playerDataManager.saveAll();
-        
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO()
-                    .setAllBatch(amount, true, allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, true, ctx.allowedUuids);
                 plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    playerDataManager.invalidateAllCache(false);
-                    for (UUID uuid : allowedUuids) {
-                        BigDecimal oldBalance = oldBalances.get(uuid);
-                        String playerName = nameMap.get(uuid);
-                        logManager.logBalanceChange(uuid, playerName, "SET_ALL", amount.subtract(oldBalance).abs(), oldBalance, amount, operator, operatorName, null);
-                        if (plugin.getRedisSyncManager() != null) {
-                            plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, amount);
-                        }
-                    }
-                    callback.accept(new BatchResult(updated, totalAccounts - updated, amount));
+                    processBatchResult(ctx, amount, "SET_ALL", false, true, operator, operatorName);
+                    callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    callback.accept(new BatchResult(0, totalAccounts, amount));
-                });
+                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }

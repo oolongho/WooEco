@@ -63,8 +63,8 @@ public class ConfigValidator {
         }
         
         String uuidMode = config.getString("settings.uuid-mode", "Default");
-        if (!uuidMode.equals("Default") && !uuidMode.equals("Online") && !uuidMode.equals("Offline")) {
-            errors.add("settings.uuid-mode 无效值: " + uuidMode + "，应为 Default/Online/Offline");
+        if (!uuidMode.equals("Default") && !uuidMode.equals("Online") && !uuidMode.equals("Offline") && !uuidMode.equals("SemiOnline")) {
+            errors.add("settings.uuid-mode 无效值: " + uuidMode + "，应为 Default/Online/Offline/SemiOnline");
             hasErrors = true;
         }
     }

@@ -130,7 +130,7 @@ public class XConomyMigrator {
                     if (!dryRun) {
                         PlayerAccount account = plugin.getPlayerDataManager().getOrCreateAccount(uuid, playerName);
                         if (account != null) {
-                            account.setBalance(BigDecimal.valueOf(balance));
+                            account.setBalance(plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(balance)));
                             playerDAO.saveOrUpdateAccount(account);
                         }
                     }
@@ -177,7 +177,7 @@ public class XConomyMigrator {
 
                     if (!dryRun) {
                         long now = System.currentTimeMillis();
-                        NonPlayerAccount account = new NonPlayerAccount(accountName, BigDecimal.valueOf(balance), now, now);
+                        NonPlayerAccount account = new NonPlayerAccount(accountName, plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(balance)), now, now);
                         npDAO.createAccount(account);
                     }
                     result.incrementMigratedNonPlayerAccount();

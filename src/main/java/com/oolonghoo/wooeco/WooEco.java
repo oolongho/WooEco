@@ -28,6 +28,7 @@ import com.oolonghoo.wooeco.manager.TaxManager;
 import com.oolonghoo.wooeco.manager.TransactionManager;
 import com.oolonghoo.wooeco.migration.MigrationManager;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
+import com.oolonghoo.wooeco.util.AsyncUtils;
 import com.oolonghoo.wooeco.util.DebugManager;
 import com.oolonghoo.wooeco.util.UUIDHandler;
 
@@ -153,6 +154,8 @@ public class WooEco extends JavaPlugin {
         if (debugManager != null) {
             debugManager.shutdown();
         }
+        
+        AsyncUtils.shutdown();
         
         if (redisSyncManager != null) {
             redisSyncManager.shutdown();

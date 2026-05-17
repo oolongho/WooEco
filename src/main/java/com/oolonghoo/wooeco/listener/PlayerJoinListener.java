@@ -32,5 +32,6 @@ public class PlayerJoinListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         plugin.getPlayerDataManager().unloadPlayer(event.getPlayer().getUniqueId());
         plugin.getCooldownManager().clearCooldown(event.getPlayer());
+        plugin.getPayToggleManager().removeFromCache(event.getPlayer().getUniqueId());
     }
 }

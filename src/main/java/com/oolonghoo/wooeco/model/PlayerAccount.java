@@ -1,7 +1,5 @@
 package com.oolonghoo.wooeco.model;
 
-import com.oolonghoo.wooeco.WooEco;
-
 import java.math.BigDecimal;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -37,14 +35,8 @@ public class PlayerAccount {
     
     public PlayerAccount(UUID uuid, String playerName, double balance, double dailyIncome, 
                          long lastIncomeReset, long createdAt, long updatedAt) {
-        this.uuid = uuid;
-        this.playerName = playerName;
-        this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(balance);
-        this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(dailyIncome);
-        this.lastIncomeReset = new AtomicLong(lastIncomeReset);
-        this.createdAt = new AtomicLong(createdAt);
-        this.updatedAt = new AtomicLong(updatedAt);
-        this.dirty = new AtomicBoolean(false);
+        this(uuid, playerName, BigDecimal.valueOf(balance), BigDecimal.valueOf(dailyIncome),
+             lastIncomeReset, createdAt, updatedAt);
     }
     
     public PlayerAccount(UUID uuid, String playerName, BigDecimal balance, BigDecimal dailyIncome, 
@@ -84,7 +76,7 @@ public class PlayerAccount {
     
     public void setBalance(BigDecimal newBalance) {
         synchronized (this) {
-            this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
+            this.balance = newBalance;
         }
         this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
@@ -106,7 +98,7 @@ public class PlayerAccount {
     
     public void setDailyIncome(BigDecimal income) {
         synchronized (this) {
-            this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(income);
+            this.dailyIncome = income;
         }
         this.dirty.set(true);
     }
@@ -117,7 +109,7 @@ public class PlayerAccount {
     
     public void addDailyIncome(BigDecimal amount) {
         synchronized (this) {
-            this.dailyIncome = WooEco.getInstance().getCurrencyConfig().formatInput(this.dailyIncome.add(amount));
+            this.dailyIncome = this.dailyIncome.add(amount);
         }
         this.dirty.set(true);
     }

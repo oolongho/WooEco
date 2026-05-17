@@ -103,8 +103,10 @@ public class PlayerDAO {
                   "ON DUPLICATE KEY UPDATE player_name = new_val.player_name, balance = new_val.balance, " +
                   "daily_income = new_val.daily_income, last_income_reset = new_val.last_income_reset, updated_at = new_val.updated_at";
         } else {
-            sql = "INSERT OR REPLACE INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) " +
-                  "VALUES (?, ?, ?, ?, ?, ?, ?)";
+            sql = "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?) " +
+                  "ON CONFLICT(uuid) DO UPDATE SET player_name = excluded.player_name, balance = excluded.balance, " +
+                  "daily_income = excluded.daily_income, last_income_reset = excluded.last_income_reset, updated_at = excluded.updated_at";
         }
         
         dbManager.getWriteLock().lock();
@@ -286,13 +288,12 @@ public class PlayerDAO {
     
     public int depositAllBatch(BigDecimal amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
         if (!onlineOnly || onlineUuids == null || onlineUuids.isEmpty()) {
-            String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, daily_income = daily_income + ?, updated_at = ?";
+            String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, updated_at = ?";
             dbManager.getWriteLock().lock();
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 stmt.setBigDecimal(1, amount);
-                stmt.setBigDecimal(2, amount);
-                stmt.setLong(3, System.currentTimeMillis());
+                stmt.setLong(2, System.currentTimeMillis());
                 return stmt.executeUpdate();
             } finally {
                 dbManager.getWriteLock().unlock();
@@ -302,12 +303,11 @@ public class PlayerDAO {
         int total = 0;
         for (int i = 0; i < onlineUuids.size(); i += BATCH_SIZE) {
             List<UUID> batch = onlineUuids.subList(i, Math.min(i + BATCH_SIZE, onlineUuids.size()));
-            String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, daily_income = daily_income + ?, updated_at = ? WHERE uuid IN (" + buildPlaceholders(batch.size()) + ")";
+            String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, updated_at = ? WHERE uuid IN (" + buildPlaceholders(batch.size()) + ")";
             dbManager.getWriteLock().lock();
             try (Connection conn = dbManager.getConnection();
                  PreparedStatement stmt = conn.prepareStatement(sql)) {
                 int paramIndex = 1;
-                stmt.setBigDecimal(paramIndex++, amount);
                 stmt.setBigDecimal(paramIndex++, amount);
                 stmt.setLong(paramIndex++, System.currentTimeMillis());
                 for (UUID uuid : batch) {

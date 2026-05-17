@@ -29,6 +29,7 @@ public class DatabaseConfig {
     private int redisPort;
     private String redisPassword;
     private String redisChannel;
+    private String redisAuthKey;
     private String serverId;
     
     private UUIDMode uuidMode;
@@ -85,6 +86,7 @@ public class DatabaseConfig {
                 this.redisPort = redisSection.getInt("port", 6379);
                 this.redisPassword = redisSection.getString("password", "");
                 this.redisChannel = redisSection.getString("channel", "wooeco:sync");
+                this.redisAuthKey = redisSection.getString("auth-key", "");
             } else {
                 setRedisDefaults();
             }
@@ -143,6 +145,7 @@ public class DatabaseConfig {
         this.redisPort = 6379;
         this.redisPassword = "";
         this.redisChannel = "wooeco:sync";
+        this.redisAuthKey = "";
     }
     
     private void setSyncDefaults() {
@@ -213,6 +216,10 @@ public class DatabaseConfig {
     
     public String getRedisChannel() {
         return redisChannel;
+    }
+    
+    public String getRedisAuthKey() {
+        return redisAuthKey;
     }
     
     public String getServerId() {

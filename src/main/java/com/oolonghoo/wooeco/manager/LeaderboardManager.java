@@ -191,16 +191,11 @@ public class LeaderboardManager {
     }
     
     public List<PlayerAccount> getBalanceTop(int page, int perPage) {
-        List<PlayerAccount> cache;
-        synchronized (cacheLock) {
-            cache = balanceTopCache;
-        }
+        List<PlayerAccount> cache = balanceTopCache;
         
         if (cache.isEmpty()) {
             refreshCache();
-            synchronized (cacheLock) {
-                cache = balanceTopCache;
-            }
+            cache = balanceTopCache;
         }
         
         int start = (page - 1) * perPage;
@@ -218,24 +213,19 @@ public class LeaderboardManager {
     }
     
     public List<PlayerAccount> getIncomeTopByPeriod(IncomePeriod period, int page, int perPage) {
-        List<PlayerAccount> cache;
-        synchronized (cacheLock) {
+        List<PlayerAccount> cache = switch (period) {
+            case WEEK -> weeklyIncomeTopCache;
+            case MONTH -> monthlyIncomeTopCache;
+            default -> incomeTopCache;
+        };
+        
+        if (cache.isEmpty()) {
+            refreshCache();
             cache = switch (period) {
                 case WEEK -> weeklyIncomeTopCache;
                 case MONTH -> monthlyIncomeTopCache;
                 default -> incomeTopCache;
             };
-        }
-        
-        if (cache.isEmpty()) {
-            refreshCache();
-            synchronized (cacheLock) {
-                cache = switch (period) {
-                    case WEEK -> weeklyIncomeTopCache;
-                    case MONTH -> monthlyIncomeTopCache;
-                    default -> incomeTopCache;
-                };
-            }
         }
         
         int start = (page - 1) * perPage;
@@ -249,11 +239,7 @@ public class LeaderboardManager {
     }
     
     public int getTotalBalancePages(int perPage) {
-        List<PlayerAccount> cache;
-        synchronized (cacheLock) {
-            cache = balanceTopCache;
-        }
-        return (int) Math.ceil((double) cache.size() / perPage);
+        return (int) Math.ceil((double) balanceTopCache.size() / perPage);
     }
     
     public int getTotalIncomePages(int perPage) {
@@ -261,14 +247,11 @@ public class LeaderboardManager {
     }
     
     public int getTotalIncomePagesByPeriod(IncomePeriod period, int perPage) {
-        List<PlayerAccount> cache;
-        synchronized (cacheLock) {
-            cache = switch (period) {
-                case WEEK -> weeklyIncomeTopCache;
-                case MONTH -> monthlyIncomeTopCache;
-                default -> incomeTopCache;
-            };
-        }
+        List<PlayerAccount> cache = switch (period) {
+            case WEEK -> weeklyIncomeTopCache;
+            case MONTH -> monthlyIncomeTopCache;
+            default -> incomeTopCache;
+        };
         return (int) Math.ceil((double) cache.size() / perPage);
     }
     

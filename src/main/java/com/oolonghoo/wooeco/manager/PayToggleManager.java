@@ -15,16 +15,16 @@ public class PayToggleManager {
     public PayToggleManager(WooEco plugin) {
         this.plugin = plugin;
         this.payToggleDAO = plugin.getDatabaseManager().getPayToggleDAO();
-        loadAll();
-    }
-
-    private void loadAll() {
-        Map<UUID, Boolean> loaded = payToggleDAO.loadAll();
-        toggleCache.putAll(loaded);
     }
 
     public boolean isPayEnabled(UUID uuid) {
-        return toggleCache.getOrDefault(uuid, true);
+        Boolean cached = toggleCache.get(uuid);
+        if (cached != null) {
+            return cached;
+        }
+        boolean enabled = payToggleDAO.isEnabled(uuid);
+        toggleCache.put(uuid, enabled);
+        return enabled;
     }
 
     public void setPayEnabled(UUID uuid, boolean enabled) {
@@ -36,5 +36,9 @@ public class PayToggleManager {
 
     public void toggle(UUID uuid) {
         setPayEnabled(uuid, !isPayEnabled(uuid));
+    }
+    
+    public void removeFromCache(UUID uuid) {
+        toggleCache.remove(uuid);
     }
 }

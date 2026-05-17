@@ -1,7 +1,5 @@
 package com.oolonghoo.wooeco.model;
 
-import com.oolonghoo.wooeco.WooEco;
-
 import java.math.BigDecimal;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -23,11 +21,7 @@ public class NonPlayerAccount {
     }
     
     public NonPlayerAccount(String accountName, double balance, long createdAt, long updatedAt) {
-        this.accountName = accountName;
-        this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(balance);
-        this.createdAt = new AtomicLong(createdAt);
-        this.updatedAt = new AtomicLong(updatedAt);
-        this.dirty = new AtomicBoolean(false);
+        this(accountName, BigDecimal.valueOf(balance), createdAt, updatedAt);
     }
     
     public NonPlayerAccount(String accountName, BigDecimal balance, long createdAt, long updatedAt) {
@@ -54,7 +48,7 @@ public class NonPlayerAccount {
     
     public void setBalance(BigDecimal newBalance) {
         synchronized (this) {
-            this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
+            this.balance = newBalance;
         }
         this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
@@ -66,12 +60,8 @@ public class NonPlayerAccount {
     
     public void deposit(BigDecimal amount) {
         synchronized (this) {
-            BigDecimal maxBalance = WooEco.getInstance().getCurrencyConfig().getMaxBalanceBigDecimal();
             BigDecimal newBalance = this.balance.add(amount);
-            if (newBalance.compareTo(maxBalance) > 0) {
-                newBalance = maxBalance;
-            }
-            this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
+            this.balance = newBalance;
         }
         this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
@@ -83,7 +73,7 @@ public class NonPlayerAccount {
             if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
                 newBalance = BigDecimal.ZERO;
             }
-            this.balance = WooEco.getInstance().getCurrencyConfig().formatInput(newBalance);
+            this.balance = newBalance;
         }
         this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
