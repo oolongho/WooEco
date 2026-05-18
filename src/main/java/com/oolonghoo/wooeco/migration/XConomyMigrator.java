@@ -52,7 +52,7 @@ public class XConomyMigrator {
             return MigrationResult.failure("XConomy-MySQL", "Database name not configured");
         }
 
-        String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&characterEncoding=utf8";
+        String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&characterEncoding=utf8&autoReconnect=true";
 
         try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
             migratePlayerData(conn, tablePrefix + "xconomy" + tableSuffix, result);
@@ -115,7 +115,7 @@ public class XConomyMigrator {
                 try {
                     String uidStr = rs.getString("UID");
                     String playerName = rs.getString("player");
-                    double balance = rs.getDouble("balance");
+                    BigDecimal balance = rs.getBigDecimal("balance");
                     int hidden = rs.getInt("hidden");
 
                     UUID uuid;
@@ -130,7 +130,7 @@ public class XConomyMigrator {
                     if (!dryRun) {
                         PlayerAccount account = plugin.getPlayerDataManager().getOrCreateAccount(uuid, playerName);
                         if (account != null) {
-                            account.setBalance(plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(balance)));
+                            account.setBalance(plugin.getCurrencyConfig().formatInput(balance != null ? balance : BigDecimal.ZERO));
                             playerDAO.saveOrUpdateAccount(account);
                         }
                     }
@@ -173,11 +173,11 @@ public class XConomyMigrator {
             while (rs.next()) {
                 try {
                     String accountName = rs.getString("account");
-                    double balance = rs.getDouble("balance");
+                    BigDecimal balance = rs.getBigDecimal("balance");
 
                     if (!dryRun) {
                         long now = System.currentTimeMillis();
-                        NonPlayerAccount account = new NonPlayerAccount(accountName, plugin.getCurrencyConfig().formatInput(BigDecimal.valueOf(balance)), now, now);
+                        NonPlayerAccount account = new NonPlayerAccount(accountName, plugin.getCurrencyConfig().formatInput(balance != null ? balance : BigDecimal.ZERO), now, now);
                         npDAO.createAccount(account);
                     }
                     result.incrementMigratedNonPlayerAccount();
@@ -203,7 +203,7 @@ public class XConomyMigrator {
                 try {
                     String uid = rs.getString("uid");
                     String playerName = rs.getString("player");
-                    double amount = rs.getDouble("amount");
+                    BigDecimal amount = rs.getBigDecimal("amount");
                     String action = rs.getString("operation");
                     if (action == null) action = rs.getString("type");
                     if (action == null) action = "MIGRATED";
@@ -224,7 +224,7 @@ public class XConomyMigrator {
 
                         EconomyLog log = new EconomyLog(
                             -1, logUuid, playerName != null ? playerName : "Unknown",
-                            action, BigDecimal.valueOf(amount),
+                            action, amount != null ? amount : BigDecimal.ZERO,
                             BigDecimal.ZERO, BigDecimal.ZERO,
                             null, null, "XCONOMY_MIGRATION", timestamp
                         );
