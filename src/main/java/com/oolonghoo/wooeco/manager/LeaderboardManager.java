@@ -282,6 +282,7 @@ public class LeaderboardManager {
     public int getBalanceRankByName(String playerName) {
         List<PlayerAccount> cache = balanceTopCache;
         if (cache.isEmpty()) {
+            refreshCacheAsync();
             return -1;
         }
         for (PlayerAccount account : cache) {
