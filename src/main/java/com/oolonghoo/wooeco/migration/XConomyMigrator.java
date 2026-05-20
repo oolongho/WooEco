@@ -165,12 +165,14 @@ public class XConomyMigrator {
     private void migrateNonPlayerData(Connection sourceConn, String tableName, MigrationResult result) throws SQLException {
         if (!plugin.getConfig().getBoolean("migration.xconomy.migrate-non-player", true)) return;
 
-        String countSql = "SELECT COUNT(*) FROM " + tableName;
+        // XConomy only creates this table when non-player account is enabled
         try (Statement stmt = sourceConn.createStatement();
-             ResultSet rs = stmt.executeQuery(countSql)) {
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
             if (rs.next()) {
                 result.setTotalNonPlayerAccounts(rs.getInt(1));
             }
+        } catch (SQLException e) {
+            return; // Table doesn't exist, skip
         }
 
         NonPlayerAccountDAO npDAO = plugin.getDatabaseManager().getNonPlayerAccountDAO();
@@ -197,11 +199,14 @@ public class XConomyMigrator {
     }
 
     private void migrateRecords(Connection sourceConn, String tableName, MigrationResult result) throws SQLException {
+        // XConomy only creates this table when MySQL + TRANSACTION_RECORD enabled
         try (Statement stmt = sourceConn.createStatement();
              ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
             if (rs.next()) {
                 result.setTotalRecords(rs.getInt(1));
             }
+        } catch (SQLException e) {
+            return; // Table doesn't exist, skip
         }
 
         String sql = "SELECT type, uid, player, balance, amount, operation, datetime FROM " + tableName;
