@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
 import org.bukkit.Bukkit;
@@ -33,10 +34,17 @@ public class EconomyManager {
     private final PlayerDataManager playerDataManager;
     private final LogManager logManager;
     
+    private final ConcurrentHashMap<UUID, BigDecimal> weeklyIncomeCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, BigDecimal> monthlyIncomeCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Long> weeklyIncomeRefreshTime = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<UUID, Long> monthlyIncomeRefreshTime = new ConcurrentHashMap<>();
+    private final long incomeCacheRefreshInterval; // in milliseconds
+    
     public EconomyManager(WooEco plugin) {
         this.plugin = plugin;
         this.playerDataManager = plugin.getPlayerDataManager();
         this.logManager = plugin.getLogManager();
+        this.incomeCacheRefreshInterval = plugin.getConfig().getLong("leaderboard.cache-refresh", 60) * 1000L;
     }
     
     public double getBalance(UUID uuid) {
@@ -289,6 +297,64 @@ public class EconomyManager {
             plugin.getLogger().warning("查询月收入失败: " + e.getMessage());
             return BigDecimal.ZERO;
         }
+    }
+    
+    public BigDecimal getWeeklyIncomeDecimalCached(UUID uuid) {
+        BigDecimal cached = weeklyIncomeCache.get(uuid);
+        Long lastRefresh = weeklyIncomeRefreshTime.get(uuid);
+        
+        if (cached != null && lastRefresh != null) {
+            if (System.currentTimeMillis() - lastRefresh < incomeCacheRefreshInterval) {
+                return cached;
+            }
+            // Cache expired: return old value, async refresh
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    long fromTimestamp = getStartOfWeekTimestamp();
+                    BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+                    weeklyIncomeCache.put(uuid, result);
+                    weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("异步刷新周收入缓存失败: " + e.getMessage());
+                }
+            });
+            return cached;
+        }
+        
+        // No cache: sync query once
+        BigDecimal result = getWeeklyIncomeDecimal(uuid);
+        weeklyIncomeCache.put(uuid, result);
+        weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+        return result;
+    }
+    
+    public BigDecimal getMonthlyIncomeDecimalCached(UUID uuid) {
+        BigDecimal cached = monthlyIncomeCache.get(uuid);
+        Long lastRefresh = monthlyIncomeRefreshTime.get(uuid);
+        
+        if (cached != null && lastRefresh != null) {
+            if (System.currentTimeMillis() - lastRefresh < incomeCacheRefreshInterval) {
+                return cached;
+            }
+            // Cache expired: return old value, async refresh
+            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+                try {
+                    long fromTimestamp = getStartOfMonthTimestamp();
+                    BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+                    monthlyIncomeCache.put(uuid, result);
+                    monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+                } catch (SQLException e) {
+                    plugin.getLogger().warning("异步刷新月收入缓存失败: " + e.getMessage());
+                }
+            });
+            return cached;
+        }
+        
+        // No cache: sync query once
+        BigDecimal result = getMonthlyIncomeDecimal(uuid);
+        monthlyIncomeCache.put(uuid, result);
+        monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+        return result;
     }
     
     private long getStartOfDayTimestamp() {

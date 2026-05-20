@@ -4,16 +4,13 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.manager.EconomyManager;
 import com.oolonghoo.wooeco.manager.GlobalStatsManager;
 import com.oolonghoo.wooeco.manager.LeaderboardManager;
-import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.model.IncomePeriod;
-import com.oolonghoo.wooeco.model.PlayerAccount;
 import me.clip.placeholderapi.expansion.PlaceholderExpansion;
 import org.bukkit.OfflinePlayer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -109,22 +106,22 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         
         if (identifier.equals("weekly_income")) {
             if (player == null) return "0";
-            return economy.getWeeklyIncomeDecimal(player.getUniqueId()).toString();
+            return economy.getWeeklyIncomeDecimalCached(player.getUniqueId()).toString();
         }
         
         if (identifier.equals("weekly_income_formatted")) {
             if (player == null) return "0";
-            return plugin.getCurrencyConfig().format(economy.getWeeklyIncomeDecimal(player.getUniqueId()));
+            return plugin.getCurrencyConfig().format(economy.getWeeklyIncomeDecimalCached(player.getUniqueId()));
         }
         
         if (identifier.equals("monthly_income")) {
             if (player == null) return "0";
-            return economy.getMonthlyIncomeDecimal(player.getUniqueId()).toString();
+            return economy.getMonthlyIncomeDecimalCached(player.getUniqueId()).toString();
         }
         
         if (identifier.equals("monthly_income_formatted")) {
             if (player == null) return "0";
-            return plugin.getCurrencyConfig().format(economy.getMonthlyIncomeDecimal(player.getUniqueId()));
+            return plugin.getCurrencyConfig().format(economy.getMonthlyIncomeDecimalCached(player.getUniqueId()));
         }
         
         if (identifier.equals("top_rank")) {
@@ -134,11 +131,9 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
         
         if (identifier.startsWith("top_rank_")) {
             String playerName = identifier.substring(9);
-            PlayerDataManager pdm = plugin.getPlayerDataManager();
-            if (pdm == null) return "-";
-            PlayerAccount account = pdm.getAccount(playerName);
-            if (account == null) return "-";
-            return String.valueOf(getPlayerRank(account.getUuid()));
+            LeaderboardManager lm = plugin.getLeaderboardManager();
+            if (lm == null) return "-";
+            return String.valueOf(lm.getBalanceRankByName(playerName));
         }
         
         if (identifier.startsWith("top_player_")) {
@@ -248,10 +243,8 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "-";
             
-            List<PlayerAccount> top = lm.getBalanceTop(1, index);
-            
-            if (top == null || top.size() < index) return "-";
-            return top.get(index - 1).getPlayerName();
+            String name = lm.getTopBalancePlayer(index);
+            return name != null ? name : "-";
         } catch (NumberFormatException e) {
             return "-";
         }
@@ -265,11 +258,8 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "0";
             
-            List<PlayerAccount> top = lm.getBalanceTop(1, index);
-            
-            if (top == null || top.size() < index) return "0";
-            
-            double balance = top.get(index - 1).getBalanceDouble();
+            double balance = lm.getTopBalanceAt(index);
+            if (balance < 0) return "0";
             
             if (formatted) {
                 return plugin.getCurrencyConfig().format(balance);
@@ -288,10 +278,8 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "-";
             
-            List<PlayerAccount> top = lm.getIncomeTopByPeriod(period, 1, index);
-            
-            if (top == null || top.size() < index) return "-";
-            return top.get(index - 1).getPlayerName();
+            String name = lm.getTopIncomePlayerByPeriod(period, index);
+            return name != null ? name : "-";
         } catch (NumberFormatException e) {
             return "-";
         }
@@ -305,11 +293,9 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
             LeaderboardManager lm = plugin.getLeaderboardManager();
             if (lm == null) return "0";
             
-            List<PlayerAccount> top = lm.getIncomeTopByPeriod(period, 1, index);
-            
-            if (top == null || top.size() < index) return "0";
-            
-            double income = top.get(index - 1).getDailyIncomeDouble();
+            // dailyIncome 字段在周/月排行上下文中存储的是对应周期的收入汇总值
+            double income = lm.getTopIncomeAt(period, index);
+            if (income < 0) return "0";
             
             if (formatted) {
                 return plugin.getCurrencyConfig().format(income);

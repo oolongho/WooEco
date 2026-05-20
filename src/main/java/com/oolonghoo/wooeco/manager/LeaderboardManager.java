@@ -189,25 +189,29 @@ public class LeaderboardManager {
             plugin.getLogger().severe("刷新排行榜缓存失败: " + e.getMessage());
         }
     }
-    
+
+    public void refreshCacheAsync() {
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::refreshCache);
+    }
+
     public List<PlayerAccount> getBalanceTop(int page, int perPage) {
         List<PlayerAccount> cache = balanceTopCache;
         
         if (cache.isEmpty()) {
-            refreshCache();
-            cache = balanceTopCache;
+            refreshCacheAsync();
+            return Collections.emptyList();
         }
-        
+
         int start = (page - 1) * perPage;
         int end = Math.min(start + perPage, cache.size());
-        
+
         if (start >= cache.size()) {
             return Collections.emptyList();
         }
-        
+
         return new ArrayList<>(cache.subList(start, end));
     }
-    
+
     public List<PlayerAccount> getIncomeTop(int page, int perPage) {
         return getIncomeTopByPeriod(IncomePeriod.DAY, page, perPage);
     }
@@ -220,24 +224,20 @@ public class LeaderboardManager {
         };
         
         if (cache.isEmpty()) {
-            refreshCache();
-            cache = switch (period) {
-                case WEEK -> weeklyIncomeTopCache;
-                case MONTH -> monthlyIncomeTopCache;
-                default -> incomeTopCache;
-            };
+            refreshCacheAsync();
+            return Collections.emptyList();
         }
-        
+
         int start = (page - 1) * perPage;
         int end = Math.min(start + perPage, cache.size());
-        
+
         if (start >= cache.size()) {
             return Collections.emptyList();
         }
-        
+
         return new ArrayList<>(cache.subList(start, end));
     }
-    
+
     public int getTotalBalancePages(int perPage) {
         return (int) Math.ceil((double) balanceTopCache.size() / perPage);
     }
@@ -270,12 +270,73 @@ public class LeaderboardManager {
     public int getBalanceRank(UUID uuid) {
         Map<UUID, Integer> cache = balanceRankCache;
         if (cache.isEmpty()) {
-            refreshCache();
-            cache = balanceRankCache;
+            refreshCacheAsync();
+            return -1;
         }
         return cache.getOrDefault(uuid, -1);
     }
-    
+
+    /**
+     * 按玩家名查找余额排名（仅从内存缓存，零DB调用）
+     */
+    public int getBalanceRankByName(String playerName) {
+        List<PlayerAccount> cache = balanceTopCache;
+        if (cache.isEmpty()) {
+            return -1;
+        }
+        for (PlayerAccount account : cache) {
+            if (account.getPlayerName().equalsIgnoreCase(playerName)) {
+                return balanceRankCache.getOrDefault(account.getUuid(), -1);
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 直接从缓存获取指定排名的余额排行玩家名（O(1)，零DB调用）
+     */
+    public String getTopBalancePlayer(int rank) {
+        List<PlayerAccount> cache = balanceTopCache;
+        if (rank < 1 || rank > cache.size()) return null;
+        return cache.get(rank - 1).getPlayerName();
+    }
+
+    /**
+     * 直接从缓存获取指定排名的余额（O(1)，零DB调用）
+     */
+    public double getTopBalanceAt(int rank) {
+        List<PlayerAccount> cache = balanceTopCache;
+        if (rank < 1 || rank > cache.size()) return -1;
+        return cache.get(rank - 1).getBalanceDouble();
+    }
+
+    /**
+     * 直接从缓存获取指定排名的收入排行玩家名（O(1)，零DB调用）
+     */
+    public String getTopIncomePlayerByPeriod(IncomePeriod period, int rank) {
+        List<PlayerAccount> cache = getIncomeCache(period);
+        if (rank < 1 || rank > cache.size()) return null;
+        return cache.get(rank - 1).getPlayerName();
+    }
+
+    /**
+     * 直接从缓存获取指定排名的收入（O(1)，零DB调用）
+     * 注意：dailyIncome 字段在周/月排行上下文中存储的是对应周期的收入汇总值
+     */
+    public double getTopIncomeAt(IncomePeriod period, int rank) {
+        List<PlayerAccount> cache = getIncomeCache(period);
+        if (rank < 1 || rank > cache.size()) return -1;
+        return cache.get(rank - 1).getDailyIncomeDouble();
+    }
+
+    private List<PlayerAccount> getIncomeCache(IncomePeriod period) {
+        return switch (period) {
+            case WEEK -> weeklyIncomeTopCache;
+            case MONTH -> monthlyIncomeTopCache;
+            default -> incomeTopCache;
+        };
+    }
+
     public int getIncomeRank(UUID uuid) {
         return getIncomeRankByPeriod(IncomePeriod.DAY, uuid);
     }
@@ -287,12 +348,8 @@ public class LeaderboardManager {
             default -> incomeRankCache;
         };
         if (cache.isEmpty()) {
-            refreshCache();
-            cache = switch (period) {
-                case WEEK -> weeklyIncomeRankCache;
-                case MONTH -> monthlyIncomeRankCache;
-                default -> incomeRankCache;
-            };
+            refreshCacheAsync();
+            return -1;
         }
         return cache.getOrDefault(uuid, -1);
     }

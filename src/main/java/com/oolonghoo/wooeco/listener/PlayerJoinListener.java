@@ -22,7 +22,8 @@ public class PlayerJoinListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
         plugin.getPlayerDataManager().loadPlayer(event.getPlayer().getUniqueId());
-        
+        plugin.getPayToggleManager().isPayEnabled(event.getPlayer().getUniqueId());
+
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             plugin.getOfflineTransferManager().checkAndNotifyPlayer(event.getPlayer());
         }, 40L);
