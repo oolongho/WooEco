@@ -243,8 +243,8 @@ migration:
     # SQLite 文件路径（相对于插件目录）
     sqlite-file: "plugins/XConomy/data.db"
     
-    # 表前缀/后缀（MySQL和SQLite共用）
-    table-prefix: ""
+    # 表后缀（与XConomy的database.yml中MySQL.table-suffix一致，自动添加下划线）
+    # 例如XConomy配置 table-suffix: "server1"，则填写 server1
     table-suffix: ""
     
     # MySQL 设置
@@ -257,6 +257,9 @@ migration:
     
     # 是否迁移交易记录（仅MySQL）
     migrate-records: true
+    
+    # 是否迁移SemiOnline UUID映射表（如果XConomy使用了SemiOnline模式）
+    migrate-uuid-mapping: true
     
     # 是否迁移非玩家账户
     migrate-non-player: true
