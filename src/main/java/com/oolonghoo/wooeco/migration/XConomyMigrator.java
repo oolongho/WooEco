@@ -4,6 +4,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.LogDAO;
 import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
+import com.oolonghoo.wooeco.database.dao.UUIDMappingDAO;
 import com.oolonghoo.wooeco.model.EconomyLog;
 import com.oolonghoo.wooeco.model.NonPlayerAccount;
 import com.oolonghoo.wooeco.model.PlayerAccount;
@@ -45,8 +46,8 @@ public class XConomyMigrator {
         String database = plugin.getConfig().getString("migration.xconomy.mysql.database", "");
         String user = plugin.getConfig().getString("migration.xconomy.mysql.user", "");
         String password = plugin.getConfig().getString("migration.xconomy.mysql.password", "");
-        String tablePrefix = plugin.getConfig().getString("migration.xconomy.table-prefix", "");
         String tableSuffix = plugin.getConfig().getString("migration.xconomy.table-suffix", "");
+        String suffix = tableSuffix.isEmpty() ? "" : "_" + tableSuffix;
 
         if (database.isEmpty()) {
             return MigrationResult.failure("XConomy-MySQL", "Database name not configured");
@@ -55,10 +56,13 @@ public class XConomyMigrator {
         String jdbcUrl = "jdbc:mysql://" + host + ":" + port + "/" + database + "?useSSL=false&characterEncoding=utf8&autoReconnect=true";
 
         try (Connection conn = DriverManager.getConnection(jdbcUrl, user, password)) {
-            migratePlayerData(conn, tablePrefix + "xconomy" + tableSuffix, result);
-            migrateNonPlayerData(conn, tablePrefix + "xconomynon" + tableSuffix, result);
+            migratePlayerData(conn, "xconomy" + suffix, result);
+            migrateNonPlayerData(conn, "xconomynon" + suffix, result);
             if (plugin.getConfig().getBoolean("migration.xconomy.migrate-records", true)) {
-                migrateRecords(conn, tablePrefix + "xconomyrecord" + tableSuffix, result);
+                migrateRecords(conn, "xconomyrecord" + suffix, result);
+            }
+            if (plugin.getConfig().getBoolean("migration.xconomy.migrate-uuid-mapping", true)) {
+                migrateUUIDMapping(conn, "xconomyuuid" + suffix, result);
             }
         } catch (SQLException e) {
             return MigrationResult.failure("XConomy-MySQL", e.getMessage());
@@ -82,11 +86,15 @@ public class XConomyMigrator {
             return MigrationResult.failure("XConomy-SQLite", "SQLite file not found: " + dbFile.getAbsolutePath());
         }
 
-        String tablePrefix = plugin.getConfig().getString("migration.xconomy.table-prefix", "");
+        String tableSuffix = plugin.getConfig().getString("migration.xconomy.table-suffix", "");
+        String suffix = tableSuffix.isEmpty() ? "" : "_" + tableSuffix;
 
         try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + dbFile.getAbsolutePath())) {
-            migratePlayerData(conn, tablePrefix + "xconomy", result);
-            migrateNonPlayerData(conn, tablePrefix + "xconomynon", result);
+            migratePlayerData(conn, "xconomy" + suffix, result);
+            migrateNonPlayerData(conn, "xconomynon" + suffix, result);
+            if (plugin.getConfig().getBoolean("migration.xconomy.migrate-uuid-mapping", true)) {
+                migrateUUIDMapping(conn, "xconomyuuid" + suffix, result);
+            }
         } catch (SQLException e) {
             return MigrationResult.failure("XConomy-SQLite", e.getMessage());
         }
@@ -196,13 +204,14 @@ public class XConomyMigrator {
             }
         }
 
-        String sql = "SELECT type, uid, player, amount, operation, datetime FROM " + tableName;
+        String sql = "SELECT type, uid, player, balance, amount, operation, datetime FROM " + tableName;
         try (Statement stmt = sourceConn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 try {
                     String uid = rs.getString("uid");
                     String playerName = rs.getString("player");
+                    BigDecimal balanceAfter = rs.getBigDecimal("balance");
                     BigDecimal amount = rs.getBigDecimal("amount");
                     String action = rs.getString("operation");
                     if (action == null) action = rs.getString("type");
@@ -225,7 +234,7 @@ public class XConomyMigrator {
                         EconomyLog log = new EconomyLog(
                             -1, logUuid, playerName != null ? playerName : "Unknown",
                             action, amount != null ? amount : BigDecimal.ZERO,
-                            BigDecimal.ZERO, BigDecimal.ZERO,
+                            BigDecimal.ZERO, balanceAfter != null ? balanceAfter : BigDecimal.ZERO,
                             null, null, "XCONOMY_MIGRATION", timestamp
                         );
                         try {
@@ -237,6 +246,41 @@ public class XConomyMigrator {
                     result.incrementMigratedRecord();
                 } catch (Exception e) {
                     result.addError("Record: " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    private void migrateUUIDMapping(Connection sourceConn, String tableName, MigrationResult result) throws SQLException {
+        // Check if table exists
+        try (Statement stmt = sourceConn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + tableName)) {
+            if (rs.next() && rs.getInt(1) == 0) {
+                return; // No data to migrate
+            }
+        } catch (SQLException e) {
+            // Table doesn't exist, skip UUID mapping migration
+            return;
+        }
+
+        UUIDMappingDAO uuidMappingDAO = plugin.getDatabaseManager().getUUIDMappingDAO();
+        String sql = "SELECT UUID, DUUID FROM " + tableName;
+
+        try (Statement stmt = sourceConn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                try {
+                    String onlineUuidStr = rs.getString("UUID");
+                    String offlineUuidStr = rs.getString("DUUID");
+
+                    UUID onlineUuid = UUID.fromString(onlineUuidStr);
+                    UUID offlineUuid = UUID.fromString(offlineUuidStr);
+
+                    if (!dryRun) {
+                        uuidMappingDAO.saveMapping(offlineUuid, onlineUuid, null);
+                    }
+                } catch (Exception e) {
+                    result.addError("UUID Mapping: " + e.getMessage());
                 }
             }
         }
