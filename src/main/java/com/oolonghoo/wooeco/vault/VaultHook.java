@@ -1,6 +1,7 @@
 package com.oolonghoo.wooeco.vault;
 
 import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.manager.EconomyManager;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
@@ -8,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.ServicePriority;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -137,7 +139,9 @@ public class VaultHook implements Economy {
     
     @Override
     public EconomyResponse withdrawPlayer(OfflinePlayer player, double amount) {
-        EconomyManager.EconomyResult result = economyManager.withdraw(player.getUniqueId(), amount);
+        EconomyManager.EconomyResult result = economyManager.withdraw(
+            player.getUniqueId(), BigDecimal.valueOf(amount), BalanceChangeReason.PAYMENT, "Vault", "Vault"
+        );
         return toEconomyResponse(result);
     }
     
@@ -159,7 +163,9 @@ public class VaultHook implements Economy {
     
     @Override
     public EconomyResponse depositPlayer(OfflinePlayer player, double amount) {
-        EconomyManager.EconomyResult result = economyManager.deposit(player.getUniqueId(), amount);
+        EconomyManager.EconomyResult result = economyManager.deposit(
+            player.getUniqueId(), BigDecimal.valueOf(amount), BalanceChangeReason.PAYMENT_RECEIVED, "Vault", "Vault"
+        );
         return toEconomyResponse(result);
     }
     

@@ -100,8 +100,8 @@ public class WooEco extends JavaPlugin {
         playerDataManager = new PlayerDataManager(this);
         logManager = new LogManager(this);
         economyManager = new EconomyManager(this);
-        transactionManager = new TransactionManager(this);
         taxManager = new TaxManager(this);
+        transactionManager = new TransactionManager(this);
         leaderboardManager = new LeaderboardManager(this);
         offlineTransferManager = new OfflineTransferManager(this);
         nonPlayerAccountManager = new NonPlayerAccountManager(this);
@@ -182,6 +182,17 @@ public class WooEco extends JavaPlugin {
         
         PayCommand payCommand = new PayCommand(this);
         getCommand("pay").setExecutor(payCommand);
+        getCommand("pay").setTabCompleter(payCommand);
+        
+        // 延迟1tick重新绑定，防止被其他插件（如 GlobalMarketPlus）覆盖
+        getServer().getScheduler().runTask(this, () -> {
+            org.bukkit.command.PluginCommand payCmd = getServer().getPluginCommand("pay");
+            if (payCmd != null) {
+                payCmd.setExecutor(payCommand);
+                payCmd.setTabCompleter(payCommand);
+                getLogger().info("[WooEco] /pay 命令已强制绑定");
+            }
+        });
         
         IncomeCommand incomeCommand = new IncomeCommand(this);
         getCommand("income").setExecutor(incomeCommand);
