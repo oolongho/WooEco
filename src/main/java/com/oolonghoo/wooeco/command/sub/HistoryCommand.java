@@ -7,6 +7,7 @@ import com.oolonghoo.wooeco.database.dao.TransactionDAO;
 import com.oolonghoo.wooeco.manager.PlayerDataManager;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.model.Transaction;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -119,16 +120,22 @@ public class HistoryCommand extends AbstractSubCommandHandler {
         final int perPage = Math.max(1, Math.min(50, plugin.getConfig().getInt("history.per-page", 10)));
         final int offset = (page - 1) * perPage;
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 TransactionDAO transactionDAO = plugin.getDatabaseManager().getTransactionDAO();
                 int total = transactionDAO.countTransactionsRelated(uuid);
                 int totalPages = Math.max(1, (int) Math.ceil((double) total / perPage));
                 
                 if (currentPage > totalPages) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
-                    });
+                    if (sender instanceof Player p) {
+                        SchedulerUtils.runForEntity(plugin, p, () -> {
+                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
+                        });
+                    } else {
+                        SchedulerUtils.runGlobal(plugin, () -> {
+                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
+                        });
+                    }
                     return;
                 }
                 
@@ -136,43 +143,84 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                 final int finalTotal = total;
                 final int finalTotalPages = totalPages;
                 
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
-                    
-                    if (transactions.isEmpty()) {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
-                    } else {
-                        for (Transaction tx : transactions) {
-                            boolean isSender = tx.getSenderUuid().equals(uuid);
-                            String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
-                            String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
-                            String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
-                            String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
-                            String time = formatTime(tx.getTimestamp());
-                            
-                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
-                                "direction", direction,
-                                "action", action,
-                                "player", otherName,
-                                "symbol", messages.getSymbol(),
-                                "amount", formattedAmount,
-                                "time", time
-                            ))));
+                if (sender instanceof Player p) {
+                    SchedulerUtils.runForEntity(plugin, p, () -> {
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
+
+                        if (transactions.isEmpty()) {
+                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
+                        } else {
+                            for (Transaction tx : transactions) {
+                                boolean isSender = tx.getSenderUuid().equals(uuid);
+                                String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
+                                String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
+                                String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
+                                String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
+                                String time = formatTime(tx.getTimestamp());
+
+                                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
+                                    "direction", direction,
+                                    "action", action,
+                                    "player", otherName,
+                                    "symbol", messages.getSymbol(),
+                                    "amount", formattedAmount,
+                                    "time", time
+                                ))));
+                            }
                         }
-                    }
-                    
-                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
-                        "page", String.valueOf(currentPage),
-                        "total", String.valueOf(finalTotalPages),
-                        "count", String.valueOf(finalTotal)
-                    ))));
-                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
-                });
+
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
+                            "page", String.valueOf(currentPage),
+                            "total", String.valueOf(finalTotalPages),
+                            "count", String.valueOf(finalTotal)
+                        ))));
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
+                    });
+                } else {
+                    SchedulerUtils.runGlobal(plugin, () -> {
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
+
+                        if (transactions.isEmpty()) {
+                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
+                        } else {
+                            for (Transaction tx : transactions) {
+                                boolean isSender = tx.getSenderUuid().equals(uuid);
+                                String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
+                                String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
+                                String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
+                                String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
+                                String time = formatTime(tx.getTimestamp());
+
+                                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
+                                    "direction", direction,
+                                    "action", action,
+                                    "player", otherName,
+                                    "symbol", messages.getSymbol(),
+                                    "amount", formattedAmount,
+                                    "time", time
+                                ))));
+                            }
+                        }
+
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
+                            "page", String.valueOf(currentPage),
+                            "total", String.valueOf(finalTotalPages),
+                            "count", String.valueOf(finalTotal)
+                        ))));
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
+                    });
+                }
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("查询交易历史失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
-                });
+                if (sender instanceof Player p) {
+                    SchedulerUtils.runForEntity(plugin, p, () -> {
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
+                    });
+                } else {
+                    SchedulerUtils.runGlobal(plugin, () -> {
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
+                    });
+                }
             }
         });
         

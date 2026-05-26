@@ -14,7 +14,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.NonPlayerAccountDAO;
 import com.oolonghoo.wooeco.model.NonPlayerAccount;
 import com.oolonghoo.wooeco.util.AsyncUtils;
-import org.bukkit.Bukkit;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 /**
  * 非玩家账户管理器
@@ -264,7 +264,7 @@ public class NonPlayerAccountManager {
     }
     
     public void saveAccountAsync(NonPlayerAccount account) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> saveAccount(account));
+        SchedulerUtils.runAsync(plugin, () -> saveAccount(account));
     }
     
     public void saveAll() {

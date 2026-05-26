@@ -30,6 +30,7 @@ import com.oolonghoo.wooeco.migration.MigrationManager;
 import com.oolonghoo.wooeco.sync.RedisSyncManager;
 import com.oolonghoo.wooeco.util.AsyncUtils;
 import com.oolonghoo.wooeco.util.DebugManager;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import com.oolonghoo.wooeco.util.UUIDHandler;
 
 import java.sql.SQLException;
@@ -185,14 +186,14 @@ public class WooEco extends JavaPlugin {
         getCommand("pay").setTabCompleter(payCommand);
         
         // 延迟1tick重新绑定，防止被其他插件（如 GlobalMarketPlus）覆盖
-        getServer().getScheduler().runTask(this, () -> {
+        SchedulerUtils.runGlobalDelayed(this, () -> {
             org.bukkit.command.PluginCommand payCmd = getServer().getPluginCommand("pay");
             if (payCmd != null) {
                 payCmd.setExecutor(payCommand);
                 payCmd.setTabCompleter(payCommand);
                 getLogger().info("[WooEco] /pay 命令已强制绑定");
             }
-        });
+        }, 1L);
         
         IncomeCommand incomeCommand = new IncomeCommand(this);
         getCommand("income").setExecutor(incomeCommand);
@@ -204,32 +205,31 @@ public class WooEco extends JavaPlugin {
     
     private void startTasks() {
         long autoSaveInterval = getConfig().getLong("database.auto-save", 60) * 20L;
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        SchedulerUtils.runAsyncTimer(this, () -> {
             if (playerDataManager != null) {
                 playerDataManager.saveAll();
             }
-        }, autoSaveInterval, autoSaveInterval);
+        }, autoSaveInterval * 50L, autoSaveInterval * 50L);
         
         long leaderboardRefresh = getConfig().getLong("leaderboard.cache-refresh", 60) * 20L;
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        SchedulerUtils.runAsyncTimer(this, () -> {
             if (leaderboardManager != null) {
                 leaderboardManager.refreshCache();
             }
             if (globalStatsManager != null) {
                 globalStatsManager.refreshAsync();
             }
-        }, leaderboardRefresh, leaderboardRefresh);
+        }, leaderboardRefresh * 50L, leaderboardRefresh * 50L);
         
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        SchedulerUtils.runAsyncTimer(this, () -> {
             if (playerDataManager != null) {
                 playerDataManager.checkDailyReset();
             }
-        }, 20L * 60, 20L * 60);
+        }, 20L * 60 * 50L, 20L * 60 * 50L);
         
         scheduleMidnightReset();
         
-        long cleanupInterval = 20L * 60 * 60 * 24;
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        SchedulerUtils.runAsyncTimer(this, () -> {
             int retentionDays = getConfig().getInt("logging.retention-days", 30);
             if (retentionDays > 0) {
                 try {
@@ -239,7 +239,7 @@ public class WooEco extends JavaPlugin {
                     getLogger().warning(String.format("[WooEco] 清理过期日志失败：%s", e.getMessage()));
                 }
             }
-        }, cleanupInterval, cleanupInterval);
+        }, 20L * 60 * 60 * 24 * 50L, 20L * 60 * 60 * 24 * 50L);
     }
     
     private void scheduleMidnightReset() {
@@ -247,12 +247,12 @@ public class WooEco extends JavaPlugin {
         java.time.LocalDateTime nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay();
         long ticksUntilMidnight = java.time.Duration.between(now, nextMidnight).getSeconds() * 20L;
         
-        getServer().getScheduler().runTaskTimerAsynchronously(this, () -> {
+        SchedulerUtils.runAsyncTimer(this, () -> {
             if (playerDataManager != null) {
                 playerDataManager.resetAllDailyIncome();
                 getLogger().info("[WooEco] 已重置所有在线玩家的每日收入统计");
             }
-        }, ticksUntilMidnight, 20L * 60 * 60 * 24);
+        }, ticksUntilMidnight * 50L, 20L * 60 * 60 * 24 * 50L);
     }
     
     public void reload() {

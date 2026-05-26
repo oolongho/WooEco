@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.sync;
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.config.DatabaseConfig;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
@@ -139,7 +140,7 @@ public class RedisSyncManager {
     }
     
     private void publish(SyncMessage message) {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try (Jedis jedis = jedisPool.getResource()) {
                 jedis.publish(channel, serialize(message));
             } catch (Exception e) {

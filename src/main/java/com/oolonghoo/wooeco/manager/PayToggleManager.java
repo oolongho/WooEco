@@ -2,6 +2,7 @@ package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PayToggleDAO;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.util.Map;
 import java.util.UUID;
@@ -29,7 +30,7 @@ public class PayToggleManager {
 
     public void setPayEnabled(UUID uuid, boolean enabled) {
         toggleCache.put(uuid, enabled);
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             payToggleDAO.setEnabled(uuid, enabled);
         });
     }

@@ -4,6 +4,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.model.IncomePeriod;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.sql.SQLException;
 import java.time.DayOfWeek;
@@ -191,7 +192,7 @@ public class LeaderboardManager {
     }
 
     public void refreshCacheAsync() {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::refreshCache);
+        SchedulerUtils.runAsync(plugin, this::refreshCache);
     }
 
     public List<PlayerAccount> getBalanceTop(int page, int perPage) {

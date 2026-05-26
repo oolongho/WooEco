@@ -1,6 +1,7 @@
 package com.oolonghoo.wooeco.listener;
 
 import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -24,7 +25,7 @@ public class PlayerJoinListener implements Listener {
         plugin.getPlayerDataManager().loadPlayer(event.getPlayer().getUniqueId());
         plugin.getPayToggleManager().isPayEnabled(event.getPlayer().getUniqueId());
 
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+        SchedulerUtils.runForEntityDelayed(plugin, event.getPlayer(), () -> {
             plugin.getOfflineTransferManager().checkAndNotifyPlayer(event.getPlayer());
         }, 40L);
     }

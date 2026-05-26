@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.manager;
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.LogDAO;
 import com.oolonghoo.wooeco.model.EconomyLog;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -68,7 +69,7 @@ public class LogManager {
     }
     
     private void saveLogAsync(EconomyLog log) {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 logDAO.saveLog(log);
             } catch (SQLException e) {
@@ -81,7 +82,7 @@ public class LogManager {
         String logType = getLogType(log.getAction());
         File logFile = new File(logFolder, logType + "-" + fileDateFormat.format(LocalDateTime.now()) + ".log");
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try (PrintWriter writer = new PrintWriter(new FileWriter(logFile, true))) {
                 String timestamp = dateFormat.format(LocalDateTime.ofInstant(Instant.ofEpochMilli(log.getTimestamp()), ZoneId.systemDefault()));
                 String logLine = formatLogLine(log, timestamp);
@@ -127,7 +128,7 @@ public class LogManager {
             return;
         }
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 logDAO.cleanupOldLogs(retentionDays);
                 plugin.getDatabaseManager().getTransactionDAO().cleanupOldTransactions(retentionDays);

@@ -4,6 +4,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.config.MessageManager;
 import com.oolonghoo.wooeco.database.dao.OfflineTransferTipDAO;
 import com.oolonghoo.wooeco.model.OfflineTransferTip;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import net.kyori.adventure.audience.Audience;
 import org.bukkit.entity.Player;
 
@@ -32,7 +33,7 @@ public class OfflineTransferManager {
         
         OfflineTransferTip tip = new OfflineTransferTip(receiverUuid, senderName, amount);
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 tipDAO.saveTip(tip);
             } catch (SQLException e) {
@@ -46,12 +47,12 @@ public class OfflineTransferManager {
         
         UUID uuid = player.getUniqueId();
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 int count = tipDAO.getUnnotifiedCount(uuid);
                 
                 if (count > 0) {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                    SchedulerUtils.runForEntity(plugin, player, () -> {
                         notifyPlayer(player, count);
                     });
                     
@@ -83,7 +84,7 @@ public class OfflineTransferManager {
         int retentionDays = plugin.getConfig().getInt("logging.retention-days", 30);
         if (retentionDays <= 0) return;
         
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 tipDAO.cleanupOldTips(retentionDays);
             } catch (SQLException e) {

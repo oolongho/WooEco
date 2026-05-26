@@ -15,13 +15,11 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import org.bukkit.Bukkit;
-
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.model.PlayerAccount;
-import com.oolonghoo.wooeco.util.AsyncUtils;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 /**
  * 经济管理器
@@ -103,7 +101,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount, reason);
-        AsyncUtils.callEventOnMain(event);
+        SchedulerUtils.callEvent(plugin, event);
         plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
         
         if (event.isCancelled()) {
@@ -173,7 +171,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.negate(), reason);
-        AsyncUtils.callEventOnMain(event);
+        SchedulerUtils.callEvent(plugin, event);
         
         if (event.isCancelled()) {
             synchronized (account) {
@@ -234,7 +232,7 @@ public class EconomyManager {
         }
         
         BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.subtract(oldBalance), reason);
-        AsyncUtils.callEventOnMain(event);
+        SchedulerUtils.callEvent(plugin, event);
         
         if (event.isCancelled()) {
             synchronized (account) {
@@ -308,7 +306,7 @@ public class EconomyManager {
                 return cached;
             }
             // Cache expired: return old value, async refresh
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            SchedulerUtils.runAsync(plugin, () -> {
                 try {
                     long fromTimestamp = getStartOfWeekTimestamp();
                     BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
@@ -337,7 +335,7 @@ public class EconomyManager {
                 return cached;
             }
             // Cache expired: return old value, async refresh
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            SchedulerUtils.runAsync(plugin, () -> {
                 try {
                     long fromTimestamp = getStartOfMonthTimestamp();
                     BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
@@ -404,7 +402,7 @@ public class EconomyManager {
             BigDecimal changeAmount = isSet ? amount.subtract(oldBalance) : (isWithdraw ? amount.negate() : amount);
             
             BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
-            AsyncUtils.callEventOnMain(event);
+            SchedulerUtils.callEvent(plugin, event);
             
             if (!event.isCancelled()) {
                 ctx.allowedUuids.add(uuid);
@@ -527,16 +525,16 @@ public class EconomyManager {
         }
         
         playerDataManager.saveAll();
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, true, ctx.allowedUuids);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "DEPOSIT_ALL", false, false, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量存款失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
+                SchedulerUtils.runGlobal(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }
@@ -556,16 +554,16 @@ public class EconomyManager {
         }
         
         playerDataManager.saveAll();
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, true, ctx.allowedUuids);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "WITHDRAW_ALL", true, false, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量扣款失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
+                SchedulerUtils.runGlobal(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }
@@ -585,16 +583,16 @@ public class EconomyManager {
         }
         
         playerDataManager.saveAll();
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, true, ctx.allowedUuids);
-                plugin.getServer().getScheduler().runTask(plugin, () -> {
+                SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "SET_ALL", false, true, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
                 });
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("批量设置余额失败：%s", e.getMessage()));
-                plugin.getServer().getScheduler().runTask(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
+                SchedulerUtils.runGlobal(plugin, () -> callback.accept(new BatchResult(0, ctx.totalAccounts, amount)));
             }
         });
     }

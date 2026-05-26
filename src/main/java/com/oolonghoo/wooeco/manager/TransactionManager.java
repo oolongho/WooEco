@@ -4,15 +4,13 @@ import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
-
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeReason;
 import com.oolonghoo.wooeco.api.events.TransactionEvent;
 import com.oolonghoo.wooeco.database.dao.TransactionDAO;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.model.Transaction;
-import com.oolonghoo.wooeco.util.AsyncUtils;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 /**
  * 交易管理器
@@ -80,7 +78,7 @@ public class TransactionManager {
             receiverUuid, receiverAccount.getPlayerName(),
             amount, tax
         );
-        AsyncUtils.callEventOnMain(event);
+        SchedulerUtils.callEvent(plugin, event);
         
         if (event.isCancelled()) {
             return new TransactionResult(false, "交易被取消", BigDecimal.ZERO, BigDecimal.ZERO);
@@ -148,7 +146,7 @@ public class TransactionManager {
     
     private void saveTransactionAsync(Transaction transaction) {
         if (plugin.getConfig().getBoolean("logging.transaction", true)) {
-            plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            SchedulerUtils.runAsync(plugin, () -> {
                 try {
                     transactionDAO.saveTransaction(transaction);
                 } catch (SQLException e) {

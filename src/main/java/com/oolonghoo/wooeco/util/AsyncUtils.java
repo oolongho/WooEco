@@ -2,11 +2,7 @@ package com.oolonghoo.wooeco.util;
 
 import com.oolonghoo.wooeco.WooEco;
 
-import org.bukkit.Bukkit;
-import org.bukkit.event.Event;
-
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -101,40 +97,5 @@ public class AsyncUtils {
     
     public static CompletableFuture<Void> runAsync(Runnable task) {
         return CompletableFuture.runAsync(task, executor);
-    }
-    
-    public static boolean isMainThread() {
-        return plugin != null && plugin.getServer().isPrimaryThread();
-    }
-    
-    public static void runOnMainThread(Runnable task) {
-        if (plugin == null) {
-            return;
-        }
-        plugin.getServer().getScheduler().runTask(plugin, task);
-    }
-    
-    public static void runOnMainThreadLater(Runnable task, long delayTicks) {
-        if (plugin == null) {
-            return;
-        }
-        plugin.getServer().getScheduler().runTaskLater(plugin, task, delayTicks);
-    }
-    
-    public static void callEventOnMain(Event event) {
-        if (Bukkit.isPrimaryThread()) {
-            Bukkit.getPluginManager().callEvent(event);
-            return;
-        }
-        CountDownLatch latch = new CountDownLatch(1);
-        plugin.getServer().getScheduler().runTask(plugin, () -> {
-            Bukkit.getPluginManager().callEvent(event);
-            latch.countDown();
-        });
-        try {
-            latch.await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
     }
 }

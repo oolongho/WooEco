@@ -5,6 +5,7 @@ import com.oolonghoo.wooeco.config.UUIDMode;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.model.PlayerAccount;
 import com.oolonghoo.wooeco.util.AsyncUtils;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -314,7 +315,7 @@ public class PlayerDataManager {
     }
     
     public void saveAccount(PlayerAccount account) {
-        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 playerDAO.saveOrUpdateAccount(account);
             } catch (SQLException e) {
@@ -366,17 +367,13 @@ public class PlayerDataManager {
             account.setLastIncomeReset(todayStart);
         }
         
-        getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 playerDAO.resetAllDailyIncome();
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("重置所有玩家每日收入失败：%s", e.getMessage()));
             }
         });
-    }
-    
-    private org.bukkit.Server getServer() {
-        return plugin.getServer();
     }
     
     public void checkAndResetDailyIncome(PlayerAccount account) {

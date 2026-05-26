@@ -1,6 +1,7 @@
 package com.oolonghoo.wooeco.migration;
 
 import com.oolonghoo.wooeco.WooEco;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -27,7 +28,7 @@ public class MigrationManager {
             progressCallback.accept("already-running");
             return;
         }
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 VaultMigrator migrator = new VaultMigrator(plugin, progressCallback, dryRun);
                 lastResult = migrator.migrate();
@@ -47,7 +48,7 @@ public class MigrationManager {
             progressCallback.accept("already-running");
             return;
         }
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
                 XConomyMigrator migrator = new XConomyMigrator(plugin, progressCallback, dryRun);
                 lastResult = migrator.migrate();

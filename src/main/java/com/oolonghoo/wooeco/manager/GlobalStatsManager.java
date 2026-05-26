@@ -2,6 +2,7 @@ package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
+import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -60,7 +61,7 @@ public class GlobalStatsManager {
     }
     
     public void refreshAsync() {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::refresh);
+        SchedulerUtils.runAsync(plugin, this::refresh);
     }
     
     public void refreshIfNeeded() {
