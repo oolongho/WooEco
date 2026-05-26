@@ -209,8 +209,8 @@ public class WooEco extends JavaPlugin {
             if (playerDataManager != null) {
                 playerDataManager.saveAll();
             }
-        }, autoSaveInterval * 50L, autoSaveInterval * 50L);
-        
+        }, SchedulerUtils.ticksToMs(autoSaveInterval), SchedulerUtils.ticksToMs(autoSaveInterval));
+
         long leaderboardRefresh = getConfig().getLong("leaderboard.cache-refresh", 60) * 20L;
         SchedulerUtils.runAsyncTimer(this, () -> {
             if (leaderboardManager != null) {
@@ -219,16 +219,18 @@ public class WooEco extends JavaPlugin {
             if (globalStatsManager != null) {
                 globalStatsManager.refreshAsync();
             }
-        }, leaderboardRefresh * 50L, leaderboardRefresh * 50L);
-        
+        }, SchedulerUtils.ticksToMs(leaderboardRefresh), SchedulerUtils.ticksToMs(leaderboardRefresh));
+
+        long dailyCheckInterval = 20L * 60; // 1 minute in ticks
         SchedulerUtils.runAsyncTimer(this, () -> {
             if (playerDataManager != null) {
                 playerDataManager.checkDailyReset();
             }
-        }, 20L * 60 * 50L, 20L * 60 * 50L);
-        
+        }, SchedulerUtils.ticksToMs(dailyCheckInterval), SchedulerUtils.ticksToMs(dailyCheckInterval));
+
         scheduleMidnightReset();
-        
+
+        long cleanupInterval = 20L * 60 * 60 * 24; // 1 day in ticks
         SchedulerUtils.runAsyncTimer(this, () -> {
             int retentionDays = getConfig().getInt("logging.retention-days", 30);
             if (retentionDays > 0) {
@@ -239,20 +241,21 @@ public class WooEco extends JavaPlugin {
                     getLogger().warning(String.format("[WooEco] 清理过期日志失败：%s", e.getMessage()));
                 }
             }
-        }, 20L * 60 * 60 * 24 * 50L, 20L * 60 * 60 * 24 * 50L);
+        }, SchedulerUtils.ticksToMs(cleanupInterval), SchedulerUtils.ticksToMs(cleanupInterval));
     }
-    
+
     private void scheduleMidnightReset() {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         java.time.LocalDateTime nextMidnight = now.toLocalDate().plusDays(1).atStartOfDay();
         long ticksUntilMidnight = java.time.Duration.between(now, nextMidnight).getSeconds() * 20L;
-        
+        long oneDayTicks = 20L * 60 * 60 * 24;
+
         SchedulerUtils.runAsyncTimer(this, () -> {
             if (playerDataManager != null) {
                 playerDataManager.resetAllDailyIncome();
                 getLogger().info("[WooEco] 已重置所有在线玩家的每日收入统计");
             }
-        }, ticksUntilMidnight * 50L, 20L * 60 * 60 * 24 * 50L);
+        }, SchedulerUtils.ticksToMs(ticksUntilMidnight), SchedulerUtils.ticksToMs(oneDayTicks));
     }
     
     public void reload() {
