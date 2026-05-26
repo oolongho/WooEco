@@ -8,7 +8,7 @@
 
 - **细粒度锁机制**：使用 `volatile`、`synchronized` 和 `Atomic*` 类型实现最大程度的线程安全
 - **脏数据追踪**：仅保存变更数据到数据库，大幅减少 I/O 操作
-- **智能异步调度**：自动检测主线程并智能调度任务
+- **Folia 兼容调度**：使用 Folia 兼容调度器 API（异步调度器、全局区域调度器、实体调度器），单 jar 同时兼容 Paper 和 Folia
 - **超时保护**：异步操作可配置的超时时间，防止死锁
 
 ### ⚡ 性能优化
@@ -53,8 +53,8 @@
 
 ## 环境
 
-- Minecraft 1.21+
-- Java 21+
+- Minecraft 26.1+（Paper / Folia）
+- Java 25+
 - Vault 1.7+
 - PlaceholderAPI（可选）
 - Redis（可选，用于跨服同步）
