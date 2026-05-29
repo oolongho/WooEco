@@ -114,67 +114,15 @@ public class LeaderboardManager {
             List<PlayerAccount> rawWeeklyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(weekStart, cacheSize * 2);
             List<PlayerAccount> rawMonthlyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(monthStart, cacheSize * 2);
             
-            List<PlayerAccount> filteredBalanceTop = new ArrayList<>();
-            List<PlayerAccount> filteredIncomeTop = new ArrayList<>();
-            List<PlayerAccount> filteredWeeklyIncomeTop = new ArrayList<>();
-            List<PlayerAccount> filteredMonthlyIncomeTop = new ArrayList<>();
+            List<PlayerAccount> filteredBalanceTop = filterBlacklist(rawBalanceTop);
+            List<PlayerAccount> filteredIncomeTop = filterBlacklist(rawIncomeTop);
+            List<PlayerAccount> filteredWeeklyIncomeTop = filterBlacklist(rawWeeklyIncomeTop);
+            List<PlayerAccount> filteredMonthlyIncomeTop = filterBlacklist(rawMonthlyIncomeTop);
             
-            for (PlayerAccount account : rawBalanceTop) {
-                if (!isBlacklisted(account)) {
-                    filteredBalanceTop.add(account);
-                    if (filteredBalanceTop.size() >= cacheSize) {
-                        break;
-                    }
-                }
-            }
-            
-            for (PlayerAccount account : rawIncomeTop) {
-                if (!isBlacklisted(account)) {
-                    filteredIncomeTop.add(account);
-                    if (filteredIncomeTop.size() >= cacheSize) {
-                        break;
-                    }
-                }
-            }
-            
-            for (PlayerAccount account : rawWeeklyIncomeTop) {
-                if (!isBlacklisted(account)) {
-                    filteredWeeklyIncomeTop.add(account);
-                    if (filteredWeeklyIncomeTop.size() >= cacheSize) {
-                        break;
-                    }
-                }
-            }
-            
-            for (PlayerAccount account : rawMonthlyIncomeTop) {
-                if (!isBlacklisted(account)) {
-                    filteredMonthlyIncomeTop.add(account);
-                    if (filteredMonthlyIncomeTop.size() >= cacheSize) {
-                        break;
-                    }
-                }
-            }
-            
-            Map<UUID, Integer> newBalanceRankCache = new ConcurrentHashMap<>();
-            Map<UUID, Integer> newIncomeRankCache = new ConcurrentHashMap<>();
-            Map<UUID, Integer> newWeeklyIncomeRankCache = new ConcurrentHashMap<>();
-            Map<UUID, Integer> newMonthlyIncomeRankCache = new ConcurrentHashMap<>();
-            
-            for (int i = 0; i < filteredBalanceTop.size(); i++) {
-                newBalanceRankCache.put(filteredBalanceTop.get(i).getUuid(), i + 1);
-            }
-            
-            for (int i = 0; i < filteredIncomeTop.size(); i++) {
-                newIncomeRankCache.put(filteredIncomeTop.get(i).getUuid(), i + 1);
-            }
-            
-            for (int i = 0; i < filteredWeeklyIncomeTop.size(); i++) {
-                newWeeklyIncomeRankCache.put(filteredWeeklyIncomeTop.get(i).getUuid(), i + 1);
-            }
-            
-            for (int i = 0; i < filteredMonthlyIncomeTop.size(); i++) {
-                newMonthlyIncomeRankCache.put(filteredMonthlyIncomeTop.get(i).getUuid(), i + 1);
-            }
+            Map<UUID, Integer> newBalanceRankCache = buildRankCache(filteredBalanceTop);
+            Map<UUID, Integer> newIncomeRankCache = buildRankCache(filteredIncomeTop);
+            Map<UUID, Integer> newWeeklyIncomeRankCache = buildRankCache(filteredWeeklyIncomeTop);
+            Map<UUID, Integer> newMonthlyIncomeRankCache = buildRankCache(filteredMonthlyIncomeTop);
             
             synchronized (cacheLock) {
                 this.balanceTopCache = Collections.unmodifiableList(filteredBalanceTop);
@@ -189,6 +137,27 @@ public class LeaderboardManager {
         } catch (SQLException e) {
             plugin.getLogger().severe("刷新排行榜缓存失败: " + e.getMessage());
         }
+    }
+
+    private List<PlayerAccount> filterBlacklist(List<PlayerAccount> rawAccounts) {
+        List<PlayerAccount> filtered = new ArrayList<>();
+        for (PlayerAccount account : rawAccounts) {
+            if (!isBlacklisted(account)) {
+                filtered.add(account);
+                if (filtered.size() >= cacheSize) {
+                    break;
+                }
+            }
+        }
+        return filtered;
+    }
+
+    private Map<UUID, Integer> buildRankCache(List<PlayerAccount> filteredAccounts) {
+        Map<UUID, Integer> rankCache = new ConcurrentHashMap<>();
+        for (int i = 0; i < filteredAccounts.size(); i++) {
+            rankCache.put(filteredAccounts.get(i).getUuid(), i + 1);
+        }
+        return rankCache;
     }
 
     public void refreshCacheAsync() {

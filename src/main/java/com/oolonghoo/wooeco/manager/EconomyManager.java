@@ -75,32 +75,133 @@ public class EconomyManager {
         return deposit(uuid, amount, BalanceChangeReason.ADMIN, null, null);
     }
     
-    public EconomyResult deposit(UUID uuid, BigDecimal amount, BalanceChangeReason reason, 
+    public EconomyResult deposit(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
                                   String operator, String operatorName) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "金额必须大于0");
+        return executeBalanceOperation(uuid, amount, reason, operator, operatorName, "DEPOSIT",
+            (oldBalance, amt, maxBalance) -> {
+                BigDecimal newBalance = oldBalance.add(amt);
+                if (newBalance.compareTo(maxBalance) > 0) {
+                    return new BalanceCalculationResult("余额已达上限");
+                }
+                return new BalanceCalculationResult(newBalance, amt);
+            },
+            amt -> amt.compareTo(BigDecimal.ZERO) <= 0 ? "金额必须大于0" : null);
+    }
+    
+    public EconomyResult withdraw(UUID uuid, double amount) {
+        return withdraw(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, null, null);
+    }
+    
+    public EconomyResult withdraw(UUID uuid, BigDecimal amount) {
+        return withdraw(uuid, amount, BalanceChangeReason.ADMIN, null, null);
+    }
+    
+    public EconomyResult withdraw(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
+                                   String operator, String operatorName) {
+        return executeBalanceOperation(uuid, amount, reason, operator, operatorName, "WITHDRAW",
+            (oldBalance, amt, maxBalance) -> {
+                if (oldBalance.compareTo(amt) < 0) {
+                    return new BalanceCalculationResult("余额不足");
+                }
+                return new BalanceCalculationResult(oldBalance.subtract(amt), amt.negate());
+            },
+            amt -> amt.compareTo(BigDecimal.ZERO) <= 0 ? "金额必须大于0" : null);
+    }
+    
+    public EconomyResult set(UUID uuid, double amount) {
+        return set(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, null, null);
+    }
+    
+    public EconomyResult set(UUID uuid, BigDecimal amount) {
+        return set(uuid, amount, BalanceChangeReason.ADMIN, null, null);
+    }
+    
+    public EconomyResult set(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
+                              String operator, String operatorName) {
+        return executeBalanceOperation(uuid, amount, reason, operator, operatorName, "SET",
+            (oldBalance, amt, maxBalance) -> {
+                if (amt.compareTo(maxBalance) > 0) {
+                    return new BalanceCalculationResult("余额超出上限");
+                }
+                return new BalanceCalculationResult(amt, amt.subtract(oldBalance));
+            },
+            amt -> amt.compareTo(BigDecimal.ZERO) < 0 ? "金额不能为负数" : null);
+    }
+    
+    private void publishSync(UUID uuid, String playerName, BigDecimal newBalance) {
+        if (plugin.getRedisSyncManager() != null) {
+            plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
+        }
+    }
+    
+    @FunctionalInterface
+    private interface BalanceCalculationStrategy {
+        BalanceCalculationResult calculate(BigDecimal oldBalance, BigDecimal amount, BigDecimal maxBalance);
+    }
+    
+    @FunctionalInterface
+    private interface AmountValidator {
+        String validate(BigDecimal amount);
+    }
+    
+    private static class BalanceCalculationResult {
+        final BigDecimal newBalance;
+        final BigDecimal changeAmount;
+        final String errorMessage;
+        
+        BalanceCalculationResult(BigDecimal newBalance, BigDecimal changeAmount) {
+            this.newBalance = newBalance;
+            this.changeAmount = changeAmount;
+            this.errorMessage = null;
+        }
+        
+        BalanceCalculationResult(String errorMessage) {
+            this.newBalance = null;
+            this.changeAmount = null;
+            this.errorMessage = errorMessage;
+        }
+        
+        boolean isSuccess() {
+            return errorMessage == null;
+        }
+    }
+    
+    private EconomyResult executeBalanceOperation(UUID uuid, BigDecimal amount,
+                                                   BalanceChangeReason reason,
+                                                   String operator, String operatorName,
+                                                   String operationType,
+                                                   BalanceCalculationStrategy calculationStrategy,
+                                                   AmountValidator validator) {
+        String validationError = validator.validate(amount);
+        if (validationError != null) {
+            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, validationError);
         }
         
         PlayerAccount account = playerDataManager.getAccount(uuid);
         if (account == null) {
-            plugin.getDebugManager().economyError("DEPOSIT", uuid, "账户不存在");
+            plugin.getDebugManager().economyError(operationType, uuid, "账户不存在");
             return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "账户不存在");
         }
         
         BigDecimal maxBalance = plugin.getCurrencyConfig().getMaxBalanceBigDecimal();
         BigDecimal oldBalance;
         BigDecimal newBalance;
+        BigDecimal changeAmount;
         
         synchronized (account) {
             oldBalance = account.getBalance();
-            newBalance = oldBalance.add(amount);
-            if (newBalance.compareTo(maxBalance) > 0) {
-                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "余额已达上限");
+            BalanceCalculationResult calculation = calculationStrategy.calculate(oldBalance, amount, maxBalance);
+            
+            if (!calculation.isSuccess()) {
+                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, calculation.errorMessage);
             }
+            
+            newBalance = calculation.newBalance;
+            changeAmount = calculation.changeAmount;
             account.setBalance(newBalance);
         }
         
-        BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount, reason);
+        BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
         SchedulerUtils.callEvent(plugin, event);
         plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
         
@@ -124,147 +225,23 @@ public class EconomyManager {
                 account.addDailyIncome(actualChange);
             }
         }
-        playerDataManager.saveAccount(account);
-        
-        plugin.getDebugManager().economy("DEPOSIT", uuid, account.getPlayerName(), amount, oldBalance, newBalance);
-        
-        logManager.logBalanceChange(uuid, account.getPlayerName(), "DEPOSIT", 
-                                    amount, oldBalance, 
-                                    newBalance, operator, operatorName, reason != null ? reason.name() : null);
-        
-        publishSync(uuid, account.getPlayerName(), newBalance);
-        
-        BigDecimal actualChange = newBalance.subtract(oldBalance);
-        return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
-    }
-    
-    public EconomyResult withdraw(UUID uuid, double amount) {
-        return withdraw(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, null, null);
-    }
-    
-    public EconomyResult withdraw(UUID uuid, BigDecimal amount) {
-        return withdraw(uuid, amount, BalanceChangeReason.ADMIN, null, null);
-    }
-    
-    public EconomyResult withdraw(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
-                                   String operator, String operatorName) {
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "金额必须大于0");
-        }
-        
-        PlayerAccount account = playerDataManager.getAccount(uuid);
-        if (account == null) {
-            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "账户不存在");
-        }
-        
-        BigDecimal maxBalance = plugin.getCurrencyConfig().getMaxBalanceBigDecimal();
-        BigDecimal oldBalance;
-        BigDecimal newBalance;
-        
-        synchronized (account) {
-            oldBalance = account.getBalance();
-            if (oldBalance.compareTo(amount) < 0) {
-                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "余额不足");
-            }
-            newBalance = oldBalance.subtract(amount);
-            account.setBalance(newBalance);
-        }
-        
-        BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.negate(), reason);
-        SchedulerUtils.callEvent(plugin, event);
-        
-        if (event.isCancelled()) {
-            synchronized (account) {
-                account.setBalance(oldBalance);
-            }
-            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
-        }
-        
-        BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-        synchronized (account) {
-            account.setBalance(eventBalance);
-        }
-        newBalance = eventBalance;
         
         playerDataManager.saveAccount(account);
         
-        logManager.logBalanceChange(uuid, account.getPlayerName(), "WITHDRAW", 
-                                    amount, oldBalance, 
-                                    newBalance, operator, operatorName, reason != null ? reason.name() : null);
+        plugin.getDebugManager().economy(operationType, uuid, account.getPlayerName(), amount, oldBalance, newBalance);
+        
+        BigDecimal logAmount = "SET".equals(operationType) ?
+            amount.subtract(oldBalance).abs() : amount;
+        logManager.logBalanceChange(uuid, account.getPlayerName(), operationType,
+                                    logAmount, oldBalance,
+                                    newBalance, operator, operatorName,
+                                    reason != null ? reason.name() : null);
         
         publishSync(uuid, account.getPlayerName(), newBalance);
         
-        BigDecimal actualChange = oldBalance.subtract(newBalance);
+        BigDecimal actualChange = "WITHDRAW".equals(operationType) ?
+            oldBalance.subtract(newBalance) : newBalance.subtract(oldBalance);
         return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
-    }
-    
-    public EconomyResult set(UUID uuid, double amount) {
-        return set(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, null, null);
-    }
-    
-    public EconomyResult set(UUID uuid, BigDecimal amount) {
-        return set(uuid, amount, BalanceChangeReason.ADMIN, null, null);
-    }
-    
-    public EconomyResult set(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
-                              String operator, String operatorName) {
-        if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "金额不能为负数");
-        }
-        
-        PlayerAccount account = playerDataManager.getAccount(uuid);
-        if (account == null) {
-            return new EconomyResult(false, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, "账户不存在");
-        }
-        
-        BigDecimal maxBalance = plugin.getCurrencyConfig().getMaxBalanceBigDecimal();
-        BigDecimal oldBalance;
-        BigDecimal newBalance;
-        
-        synchronized (account) {
-            oldBalance = account.getBalance();
-            if (amount.compareTo(maxBalance) > 0) {
-                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "余额超出上限");
-            }
-            newBalance = amount;
-            account.setBalance(newBalance);
-        }
-        
-        BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, amount.subtract(oldBalance), reason);
-        SchedulerUtils.callEvent(plugin, event);
-        
-        if (event.isCancelled()) {
-            synchronized (account) {
-                account.setBalance(oldBalance);
-            }
-            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
-        }
-        
-        BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-        synchronized (account) {
-            account.setBalance(eventBalance);
-        }
-        newBalance = eventBalance;
-        
-        playerDataManager.saveAccount(account);
-        
-        logManager.logBalanceChange(uuid, account.getPlayerName(), "SET", 
-                                    amount.subtract(oldBalance).abs(), 
-                                    oldBalance, newBalance, 
-                                    operator, operatorName, reason != null ? reason.name() : null);
-        
-        publishSync(uuid, account.getPlayerName(), newBalance);
-        
-        BigDecimal actualChange = newBalance.subtract(oldBalance);
-        return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
-    }
-    
-    private void publishSync(UUID uuid, String playerName, BigDecimal newBalance) {
-        if (plugin.getRedisSyncManager() != null) {
-            plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
-        }
     }
     
     public double getDailyIncome(UUID uuid) {
