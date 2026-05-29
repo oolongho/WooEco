@@ -291,6 +291,7 @@ public class EconomyManager {
                     weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
                 } catch (SQLException e) {
                     plugin.getLogger().warning("异步刷新周收入缓存失败: " + e.getMessage());
+                    weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
                 }
             });
             return cached;
@@ -320,6 +321,7 @@ public class EconomyManager {
                     monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
                 } catch (SQLException e) {
                     plugin.getLogger().warning("异步刷新月收入缓存失败: " + e.getMessage());
+                    monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
                 }
             });
             return cached;
