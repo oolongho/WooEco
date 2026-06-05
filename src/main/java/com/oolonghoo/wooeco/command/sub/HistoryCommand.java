@@ -127,106 +127,73 @@ public class HistoryCommand extends AbstractSubCommandHandler {
                 int totalPages = Math.max(1, (int) Math.ceil((double) total / perPage));
                 
                 if (currentPage > totalPages) {
-                    if (sender instanceof Player p) {
-                        SchedulerUtils.runForEntity(plugin, p, () -> {
-                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
-                        });
-                    } else {
-                        SchedulerUtils.runGlobal(plugin, () -> {
-                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
-                        });
-                    }
+                    runOnMainThread(sender, () -> {
+                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.no-data")));
+                    });
                     return;
                 }
-                
+
                 List<Transaction> transactions = transactionDAO.getTransactionsRelated(uuid, offset, perPage);
                 final int finalTotal = total;
                 final int finalTotalPages = totalPages;
-                
-                if (sender instanceof Player p) {
-                    SchedulerUtils.runForEntity(plugin, p, () -> {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
 
-                        if (transactions.isEmpty()) {
-                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
-                        } else {
-                            for (Transaction tx : transactions) {
-                                boolean isSender = tx.getSenderUuid().equals(uuid);
-                                String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
-                                String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
-                                String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
-                                String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
-                                String time = formatTime(tx.getTimestamp());
-
-                                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
-                                    "direction", direction,
-                                    "action", action,
-                                    "player", otherName,
-                                    "symbol", messages.getSymbol(),
-                                    "amount", formattedAmount,
-                                    "time", time
-                                ))));
-                            }
-                        }
-
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
-                            "page", String.valueOf(currentPage),
-                            "total", String.valueOf(finalTotalPages),
-                            "count", String.valueOf(finalTotal)
-                        ))));
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
-                    });
-                } else {
-                    SchedulerUtils.runGlobal(plugin, () -> {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
-
-                        if (transactions.isEmpty()) {
-                            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
-                        } else {
-                            for (Transaction tx : transactions) {
-                                boolean isSender = tx.getSenderUuid().equals(uuid);
-                                String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
-                                String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
-                                String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
-                                String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
-                                String time = formatTime(tx.getTimestamp());
-
-                                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
-                                    "direction", direction,
-                                    "action", action,
-                                    "player", otherName,
-                                    "symbol", messages.getSymbol(),
-                                    "amount", formattedAmount,
-                                    "time", time
-                                ))));
-                            }
-                        }
-
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
-                            "page", String.valueOf(currentPage),
-                            "total", String.valueOf(finalTotalPages),
-                            "count", String.valueOf(finalTotal)
-                        ))));
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
-                    });
-                }
+                sendHistoryMessages(sender, uuid, name, transactions, currentPage, finalTotalPages, finalTotal);
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("查询交易历史失败：%s", e.getMessage()));
-                if (sender instanceof Player p) {
-                    SchedulerUtils.runForEntity(plugin, p, () -> {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
-                    });
-                } else {
-                    SchedulerUtils.runGlobal(plugin, () -> {
-                        ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
-                    });
-                }
+                runOnMainThread(sender, () -> {
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.getWithPrefix("history.error")));
+                });
             }
         });
         
         return true;
     }
     
+    private void runOnMainThread(CommandSender sender, Runnable task) {
+        if (sender instanceof Player p) {
+            SchedulerUtils.runForEntity(plugin, p, task);
+        } else {
+            SchedulerUtils.runGlobal(plugin, task);
+        }
+    }
+
+    private void sendHistoryMessages(CommandSender sender, UUID uuid, String name,
+                                     List<Transaction> transactions, int currentPage,
+                                     int totalPages, int total) {
+        runOnMainThread(sender, () -> {
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.header", Map.of("player", name))));
+
+            if (transactions.isEmpty()) {
+                ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.no-data")));
+            } else {
+                for (Transaction tx : transactions) {
+                    boolean isSender = tx.getSenderUuid().equals(uuid);
+                    String otherName = isSender ? tx.getReceiverName() : tx.getSenderName();
+                    String direction = isSender ? messages.get("history.direction-send") : messages.get("history.direction-receive");
+                    String action = isSender ? messages.get("history.action-send") : messages.get("history.action-receive");
+                    String formattedAmount = plugin.getCurrencyConfig().format(tx.getAmountDouble());
+                    String time = formatTime(tx.getTimestamp());
+
+                    ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.format", Map.of(
+                        "direction", direction,
+                        "action", action,
+                        "player", otherName,
+                        "symbol", messages.getSymbol(),
+                        "amount", formattedAmount,
+                        "time", time
+                    ))));
+                }
+            }
+
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.page-info", Map.of(
+                "page", String.valueOf(currentPage),
+                "total", String.valueOf(totalPages),
+                "count", String.valueOf(total)
+            ))));
+            ((Audience) sender).sendMessage(MessageManager.deserialize(messages.get("history.footer")));
+        });
+    }
+
     private String formatTime(long timestamp) {
         long diff = System.currentTimeMillis() - timestamp;
         long minutes = diff / (60 * 1000);
