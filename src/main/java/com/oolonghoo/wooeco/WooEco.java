@@ -70,7 +70,13 @@ public class WooEco extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-        
+
+        // XConomy 兼容层共存检测
+        if (getServer().getPluginManager().getPlugin("XConomy") != null) {
+            me.yic.xconomy.api.XConomyAPI.setCompatEnabled(false);
+            getLogger().warning("[WooEco] 检测到 XConomy 已安装，XConomy 兼容层已禁用");
+        }
+
         configLoader = new ConfigLoader(this, "config.yml");
         configLoader.initialize();
         getLogger().info("[WooEco] 配置加载完成");

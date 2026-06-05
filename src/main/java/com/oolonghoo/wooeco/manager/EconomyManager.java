@@ -238,7 +238,10 @@ public class EconomyManager {
                                     reason != null ? reason.name() : null);
         
         publishSync(uuid, account.getPlayerName(), newBalance);
-        
+
+        // 触发 XConomy 兼容事件
+        fireXConomyEvent(uuid, account.getPlayerName(), oldBalance, amount, operationType, reason);
+
         BigDecimal actualChange = "WITHDRAW".equals(operationType) ?
             oldBalance.subtract(newBalance) : newBalance.subtract(oldBalance);
         return new EconomyResult(true, actualChange, newBalance, BigDecimal.ZERO, null);
@@ -654,5 +657,20 @@ public class EconomyManager {
         public BigDecimal getTaxDecimal() {
             return tax;
         }
+    }
+
+    private void fireXConomyEvent(UUID uuid, String playerName, BigDecimal oldBalance,
+                                   BigDecimal amount, String operationType, BalanceChangeReason reason) {
+        if (!me.yic.xconomy.api.XConomyAPI.isCompatEnabled()) return;
+        Boolean isAdd = switch (operationType) {
+            case "DEPOSIT" -> true;
+            case "WITHDRAW" -> false;
+            default -> null; // SET
+        };
+        String method = reason != null ? reason.name() : operationType;
+        me.yic.xconomy.api.event.PlayerAccountEvent xconEvent =
+            new me.yic.xconomy.api.event.PlayerAccountEvent(
+                uuid, playerName, oldBalance, amount, isAdd, method, method);
+        SchedulerUtils.callEvent(plugin, xconEvent);
     }
 }

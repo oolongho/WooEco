@@ -3,6 +3,7 @@ version: ${project.version}
 main: com.oolonghoo.wooeco.WooEco
 api-version: '26.1'
 folia-supported: true
+provides: [XConomy]
 author: oolongho
 description: A simple economy plugin
 
