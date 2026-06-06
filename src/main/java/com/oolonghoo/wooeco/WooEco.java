@@ -71,8 +71,9 @@ public class WooEco extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        // XConomy 兼容层共存检测
-        if (getServer().getPluginManager().getPlugin("XConomy") != null) {
+        // XConomy 兼容层共存检测（排除自身，因为 provides: [XConomy] 会导致 getPlugin 返回自身）
+        org.bukkit.plugin.Plugin xconomyPlugin = getServer().getPluginManager().getPlugin("XConomy");
+        if (xconomyPlugin != null && !xconomyPlugin.getName().equals("WooEco")) {
             me.yic.xconomy.api.XConomyAPI.setCompatEnabled(false);
             getLogger().warning("[WooEco] 检测到 XConomy 已安装，XConomy 兼容层已禁用");
         }
@@ -197,7 +198,6 @@ public class WooEco extends JavaPlugin {
             if (payCmd != null) {
                 payCmd.setExecutor(payCommand);
                 payCmd.setTabCompleter(payCommand);
-                getLogger().info("[WooEco] /pay 命令已强制绑定");
             }
         }, 1L);
         
