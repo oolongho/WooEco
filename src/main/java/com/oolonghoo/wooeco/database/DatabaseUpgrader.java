@@ -3,6 +3,7 @@ package com.oolonghoo.wooeco.database;
 import com.oolonghoo.wooeco.WooEco;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -118,11 +119,13 @@ public class DatabaseUpgrader {
      * 记录数据库版本号
      */
     private void recordVersion(int version, String description) throws SQLException {
-        String sql = "INSERT INTO " + tablePrefix + "db_version (version, upgraded_at, description) VALUES (" +
-                     version + ", " + System.currentTimeMillis() + ", '" + description + "')";
+        String sql = "INSERT INTO " + tablePrefix + "db_version (version, upgraded_at, description) VALUES (?, ?, ?)";
         try (Connection conn = databaseManager.getConnection();
-             Statement stmt = conn.createStatement()) {
-            stmt.execute(sql);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            pstmt.setInt(1, version);
+            pstmt.setLong(2, System.currentTimeMillis());
+            pstmt.setString(3, description);
+            pstmt.execute();
         }
     }
     
