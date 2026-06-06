@@ -153,7 +153,8 @@ public class DatabaseManager {
             if (!config.isMySQL()) {
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_uuid ON " + tablePrefix + "accounts(uuid)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_balance ON " + tablePrefix + "accounts(balance)");
-                stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_player_name_lower ON " + tablePrefix + "accounts(player_name_lower)");
+                // player_name_lower 列和索引由 DatabaseUpgrader V4 添加，此处不创建
+                // 因为旧数据库中该列可能不存在，CREATE INDEX 会失败
             }
             
             String transactionsTable = config.isMySQL() ?

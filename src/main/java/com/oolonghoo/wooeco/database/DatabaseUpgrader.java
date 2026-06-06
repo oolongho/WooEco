@@ -35,9 +35,24 @@ public class DatabaseUpgrader {
             ensureVersionTableExists();
 
             int currentVersion = getCurrentVersion();
-            if (currentVersion < CURRENT_VERSION) {
-                performUpgrade(currentVersion, CURRENT_VERSION);
+            if (currentVersion >= CURRENT_VERSION) {
+                return; // 已是最新版本
             }
+
+            // 版本表为空：区分新安装和旧数据库升级
+            if (currentVersion == 0) {
+                if (hasExistingData()) {
+                    // 旧数据库从未记录版本，从版本 1 开始升级
+                    performUpgrade(1, CURRENT_VERSION);
+                } else {
+                    // 新安装，直接记录当前版本
+                    recordVersion(CURRENT_VERSION, "新安装");
+                    plugin.getLogger().info("数据库版本: " + CURRENT_VERSION);
+                }
+                return;
+            }
+
+            performUpgrade(currentVersion, CURRENT_VERSION);
         } catch (SQLException e) {
             plugin.getLogger().log(Level.SEVERE, "数据库版本检查失败: " + e.getMessage(), e);
         } finally {
@@ -79,12 +94,36 @@ public class DatabaseUpgrader {
             if (rs.next()) {
                 int version = rs.getInt(1);
                 if (rs.wasNull()) {
-                    return CURRENT_VERSION;
+                    // 版本表为空，说明是全新安装
+                    return 0;
                 }
                 return version;
             }
         }
-        return CURRENT_VERSION;
+        return 0;
+    }
+
+    /**
+     * 检查数据库中是否已有数据（区分新安装和旧数据库升级）
+     */
+    private boolean hasExistingData() throws SQLException {
+        try (Connection conn = databaseManager.getConnection();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM " + tablePrefix + "accounts LIMIT 1")) {
+            return rs.next() && rs.getInt(1) > 0;
+        }
+    }
+
+    /**
+     * 记录数据库版本号
+     */
+    private void recordVersion(int version, String description) throws SQLException {
+        String sql = "INSERT INTO " + tablePrefix + "db_version (version, upgraded_at, description) VALUES (" +
+                     version + ", " + System.currentTimeMillis() + ", '" + description + "')";
+        try (Connection conn = databaseManager.getConnection();
+             Statement stmt = conn.createStatement()) {
+            stmt.execute(sql);
+        }
     }
     
     private void performUpgrade(int fromVersion, int toVersion) throws SQLException {
@@ -152,8 +191,16 @@ public class DatabaseUpgrader {
         if (databaseManager.isMySQL()) {
             stmt.execute("ALTER TABLE " + tablePrefix + "accounts MODIFY COLUMN player_name VARCHAR(16) NOT NULL COLLATE utf8mb4_ci");
         } else {
-            stmt.execute("ALTER TABLE " + tablePrefix + "accounts ADD COLUMN player_name_lower VARCHAR(16)");
-            stmt.execute("UPDATE " + tablePrefix + "accounts SET player_name_lower = LOWER(player_name)");
+            // 幂等：列已存在时跳过
+            try {
+                stmt.execute("ALTER TABLE " + tablePrefix + "accounts ADD COLUMN player_name_lower VARCHAR(16)");
+            } catch (SQLException e) {
+                if (!e.getMessage().contains("duplicate column name")) {
+                    throw e;
+                }
+                // 列已存在，跳过
+            }
+            stmt.execute("UPDATE " + tablePrefix + "accounts SET player_name_lower = LOWER(player_name) WHERE player_name_lower IS NULL");
             stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_player_name_lower ON " + tablePrefix + "accounts(player_name_lower)");
         }
     }
