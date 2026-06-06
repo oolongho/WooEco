@@ -191,15 +191,6 @@ public class WooEco extends JavaPlugin {
         getCommand("pay").setExecutor(payCommand);
         getCommand("pay").setTabCompleter(payCommand);
         
-        // 延迟1tick重新绑定，防止被其他插件（如 GlobalMarketPlus）覆盖
-        SchedulerUtils.runGlobalDelayed(this, () -> {
-            org.bukkit.command.PluginCommand payCmd = getServer().getPluginCommand("pay");
-            if (payCmd != null) {
-                payCmd.setExecutor(payCommand);
-                payCmd.setTabCompleter(payCommand);
-            }
-        }, 1L);
-        
         IncomeCommand incomeCommand = new IncomeCommand(this);
         getCommand("income").setExecutor(incomeCommand);
     }

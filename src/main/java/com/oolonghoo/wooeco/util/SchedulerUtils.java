@@ -6,7 +6,6 @@ import org.bukkit.entity.Entity;
 import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -14,9 +13,6 @@ import java.util.concurrent.TimeUnit;
  * <p>
  * 使用 Folia 新版调度器 API（异步调度器、全局区域调度器、实体调度器），
  * 替代旧版 Bukkit.getScheduler() API，确保插件在 Folia 环境下正常运行。
- * <p>
- * 注意：{@link #callEvent(Plugin, Event)} 方法是阻塞式的，
- * 会在全局区域线程上同步触发事件并等待完成，与旧版 CountDownLatch 行为一致。
  */
 public final class SchedulerUtils {
 
@@ -106,31 +102,20 @@ public final class SchedulerUtils {
     }
 
     /**
-     * 在全局区域线程上触发事件，并阻塞等待事件完成。
+     * 触发事件，根据当前线程上下文选择触发方式。
      * <p>
-     * 使用 CompletableFuture 实现阻塞等待，确保事件触发后
-     * 调用方可以立即检查事件状态（如 {@code event.isCancelled()}）。
-     * <p>
-     * 此方法在以下场景中是线程安全的：
-     * <ul>
-     *   <li>从异步线程调用：阻塞异步线程等待全局区域线程执行，无死锁风险</li>
-     *   <li>从全局区域线程调用：{@code run()} 会立即同步执行，无死锁风险</li>
-     *   <li>从 Folia 区域线程调用：全局区域线程与区域线程独立，无循环依赖</li>
-     * </ul>
+     * 主线程上直接同步调用，非主线程上通过全局区域调度器投递。
+     * 参考 XConomy 的 CallAPI 实现模式，避免 CompletableFuture.join() 导致死锁。
      *
      * @param plugin 插件实例
      * @param event  要触发的事件
      */
     public static void callEvent(Plugin plugin, Event event) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, scheduledTask -> {
-            try {
-                Bukkit.getPluginManager().callEvent(event);
-            } finally {
-                future.complete(null);
-            }
-        });
-        future.join();
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, scheduledTask -> Bukkit.getPluginManager().callEvent(event));
+        }
     }
 
     /**
