@@ -1,7 +1,7 @@
 name: WooEco
 version: ${project.version}
 main: com.oolonghoo.wooeco.WooEco
-api-version: '26.1'
+api-version: '1.21'
 folia-supported: true
 provides: [XConomy]
 author: oolongho

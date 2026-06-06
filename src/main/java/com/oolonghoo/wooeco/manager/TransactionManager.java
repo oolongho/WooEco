@@ -172,7 +172,9 @@ public class TransactionManager {
                 receiverAccount.setBalance(receiverNewBalance);
                 receiverAccount.addDailyIncome(amount);
                 if (taxReceiverAccount != null && taxReceiverNewBalance != null) {
-                    taxReceiverAccount.setBalance(taxReceiverNewBalance);
+                    synchronized (taxReceiverAccount) {
+                        taxReceiverAccount.setBalance(taxReceiverNewBalance);
+                    }
                 }
             }
         }

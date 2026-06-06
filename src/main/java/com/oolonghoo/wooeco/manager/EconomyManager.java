@@ -199,22 +199,19 @@ public class EconomyManager {
             newBalance = calculation.newBalance;
             changeAmount = calculation.changeAmount;
             account.setBalance(newBalance);
-        }
         
-        BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
-        SchedulerUtils.callEvent(plugin, event);
-        plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
-        
-        if (event.isCancelled()) {
-            synchronized (account) {
+            // 在锁内触发事件，防止锁释放后其他线程修改余额导致不一致
+            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
+            SchedulerUtils.callEvent(plugin, event);
+            plugin.getDebugManager().event("BalanceChangeEvent", "UUID: " + uuid + " | Amount: " + amount);
+            
+            if (event.isCancelled()) {
                 account.setBalance(oldBalance);
+                return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
             }
-            return new EconomyResult(false, BigDecimal.ZERO, oldBalance, BigDecimal.ZERO, "操作被取消");
-        }
-        
-        BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
-        eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
-        synchronized (account) {
+            
+            BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
+            eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
             account.setBalance(eventBalance);
             // 在锁内计算并设置每日收入，避免竞态条件
             if (reason == BalanceChangeReason.PAYMENT_RECEIVED) {
@@ -223,8 +220,8 @@ public class EconomyManager {
                     account.addDailyIncome(actualChange);
                 }
             }
+            newBalance = eventBalance;
         }
-        newBalance = eventBalance;
         
         playerDataManager.saveAccount(account);
         
