@@ -66,8 +66,6 @@ public class DatabaseManager {
             
             DatabaseUpgrader upgrader = new DatabaseUpgrader(plugin, this);
             upgrader.checkAndUpgrade();
-            
-            plugin.getLogger().info("数据库初始化完成 (" + config.getType() + ")");
         } catch (SQLException e) {
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "数据库初始化失败: " + e.getMessage(), e);
         }
@@ -109,6 +107,10 @@ public class DatabaseManager {
             }
         }
         
+        // 抑制 HikariCP 的 INFO 日志
+        java.util.logging.Logger hikariLogger = java.util.logging.Logger.getLogger("com.zaxxer.hikari");
+        hikariLogger.setLevel(java.util.logging.Level.WARNING);
+
         dataSource = new HikariDataSource(hikariConfig);
     }
     

@@ -33,10 +33,8 @@ public class DatabaseUpgrader {
         lock.lock();
         try {
             ensureVersionTableExists();
-            
+
             int currentVersion = getCurrentVersion();
-            plugin.getLogger().info("数据库版本: " + currentVersion);
-            
             if (currentVersion < CURRENT_VERSION) {
                 performUpgrade(currentVersion, CURRENT_VERSION);
             }

@@ -37,8 +37,6 @@ public class CommandAliasManager {
         for (String alias : aliases) {
             registerAlias(alias);
         }
-        
-        plugin.getLogger().info("已注册 " + registeredAliases.size() + " 个命令别名: " + String.join(", ", registeredAliases.keySet()));
     }
     
     public void registerAlias(String alias) {

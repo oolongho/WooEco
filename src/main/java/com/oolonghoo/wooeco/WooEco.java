@@ -137,7 +137,6 @@ public class WooEco extends JavaPlugin {
         
         if (getServer().getPluginManager().getPlugin("PlaceholderAPI") != null) {
             new PlaceholderAPIHook(this).register();
-            getLogger().info("[WooEco] PlaceholderAPI 集成已启用");
         }
         
         WooEcoAPI.initialize(this);

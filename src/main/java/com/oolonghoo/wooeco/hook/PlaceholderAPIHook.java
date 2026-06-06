@@ -53,7 +53,7 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
     public boolean register() {
         boolean success = super.register();
         if (success) {
-            plugin.getLogger().info("PlaceholderAPI扩展注册成功: wooeco");
+            plugin.getLogger().info("[WooEco] PlaceholderAPI 扩展已注册");
         } else {
             plugin.getLogger().warning("PlaceholderAPI扩展注册失败!");
         }
