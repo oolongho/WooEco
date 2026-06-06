@@ -170,7 +170,14 @@ public class WooEco extends JavaPlugin {
                 playerDataManager.saveAll();
             }
         } catch (Exception e) {
-            getLogger().severe("[WooEco] 玩家数据保存异常: " + e.getMessage());
+            getLogger().severe("[WooEco] 玩家数据保存异常，重试中: " + e.getMessage());
+            try {
+                if (playerDataManager != null) {
+                    playerDataManager.saveAll();
+                }
+            } catch (Exception e2) {
+                getLogger().severe("[WooEco] 玩家数据重试保存仍然失败，数据可能丢失！");
+            }
         }
 
         try {

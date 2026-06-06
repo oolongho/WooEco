@@ -120,22 +120,31 @@ public class LogDAO {
 
         String sql = "INSERT INTO " + tablePrefix + "logs (uuid, player_name, action, amount, balance_before, balance_after, operator, operator_name, reason, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         dbManager.getWriteLock().lock();
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            for (EconomyLog log : logs) {
-                stmt.setString(1, log.getUuid().toString());
-                stmt.setString(2, log.getPlayerName());
-                stmt.setString(3, log.getAction());
-                stmt.setBigDecimal(4, log.getAmount());
-                stmt.setBigDecimal(5, log.getBalanceBefore());
-                stmt.setBigDecimal(6, log.getBalanceAfter());
-                stmt.setString(7, log.getOperator());
-                stmt.setString(8, log.getOperatorName());
-                stmt.setString(9, log.getReason());
-                stmt.setLong(10, log.getTimestamp());
-                stmt.addBatch();
+        try (Connection conn = dbManager.getConnection()) {
+            boolean originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                for (EconomyLog log : logs) {
+                    stmt.setString(1, log.getUuid().toString());
+                    stmt.setString(2, log.getPlayerName());
+                    stmt.setString(3, log.getAction());
+                    stmt.setBigDecimal(4, log.getAmount());
+                    stmt.setBigDecimal(5, log.getBalanceBefore());
+                    stmt.setBigDecimal(6, log.getBalanceAfter());
+                    stmt.setString(7, log.getOperator());
+                    stmt.setString(8, log.getOperatorName());
+                    stmt.setString(9, log.getReason());
+                    stmt.setLong(10, log.getTimestamp());
+                    stmt.addBatch();
+                }
+                stmt.executeBatch();
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(originalAutoCommit);
             }
-            stmt.executeBatch();
         } finally {
             dbManager.getWriteLock().unlock();
         }
