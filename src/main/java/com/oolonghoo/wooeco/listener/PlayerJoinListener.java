@@ -23,7 +23,6 @@ public class PlayerJoinListener implements Listener {
     @EventHandler(priority = EventPriority.NORMAL)
     public void onPlayerJoin(PlayerJoinEvent event) {
         plugin.getPlayerDataManager().loadPlayer(event.getPlayer().getUniqueId());
-        plugin.getPayToggleManager().isPayEnabled(event.getPlayer().getUniqueId());
 
         SchedulerUtils.runForEntityDelayed(plugin, event.getPlayer(), () -> {
             plugin.getOfflineTransferManager().checkAndNotifyPlayer(event.getPlayer());
@@ -35,5 +34,6 @@ public class PlayerJoinListener implements Listener {
         plugin.getPlayerDataManager().unloadPlayer(event.getPlayer().getUniqueId());
         plugin.getCooldownManager().clearCooldown(event.getPlayer());
         plugin.getPayToggleManager().removeFromCache(event.getPlayer().getUniqueId());
+        plugin.getEconomyManager().clearIncomeCache(event.getPlayer().getUniqueId());
     }
 }

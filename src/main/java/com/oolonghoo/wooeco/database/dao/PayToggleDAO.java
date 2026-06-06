@@ -21,18 +21,19 @@ public class PayToggleDAO {
 
     public boolean isEnabled(UUID uuid) {
         String sql = "SELECT enabled FROM " + tablePrefix + "pay_toggle WHERE uuid = ?";
-        dbManager.getReadLock().lock();
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, uuid.toString());
-            ResultSet rs = stmt.executeQuery();
-            if (rs.next()) {
-                return rs.getBoolean("enabled");
+        try (Connection conn = dbManager.getConnection()) {
+            dbManager.getReadLock().lock();
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, uuid.toString());
+                ResultSet rs = stmt.executeQuery();
+                if (rs.next()) {
+                    return rs.getBoolean("enabled");
+                }
+            } finally {
+                dbManager.getReadLock().unlock();
             }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("查询收款开关失败: " + e.getMessage());
-        } finally {
-            dbManager.getReadLock().unlock();
         }
         return true;
     }
@@ -46,35 +47,37 @@ public class PayToggleDAO {
             sql = "INSERT INTO " + tablePrefix + "pay_toggle (uuid, enabled, updated_at) VALUES (?, ?, ?) " +
                   "ON CONFLICT(uuid) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at";
         }
-        dbManager.getWriteLock().lock();
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, uuid.toString());
-            stmt.setBoolean(2, enabled);
-            stmt.setLong(3, System.currentTimeMillis());
-            stmt.executeUpdate();
+        try (Connection conn = dbManager.getConnection()) {
+            dbManager.getWriteLock().lock();
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setString(1, uuid.toString());
+                stmt.setBoolean(2, enabled);
+                stmt.setLong(3, System.currentTimeMillis());
+                stmt.executeUpdate();
+            } finally {
+                dbManager.getWriteLock().unlock();
+            }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("设置收款开关失败: " + e.getMessage());
-        } finally {
-            dbManager.getWriteLock().unlock();
         }
     }
 
     public Map<UUID, Boolean> loadAll() {
         Map<UUID, Boolean> map = new HashMap<>();
         String sql = "SELECT uuid, enabled FROM " + tablePrefix + "pay_toggle";
-        dbManager.getReadLock().lock();
-        try (Connection conn = dbManager.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(sql);
-             ResultSet rs = stmt.executeQuery()) {
-            while (rs.next()) {
-                UUID uuid = UUID.fromString(rs.getString("uuid"));
-                map.put(uuid, rs.getBoolean("enabled"));
+        try (Connection conn = dbManager.getConnection()) {
+            dbManager.getReadLock().lock();
+            try (PreparedStatement stmt = conn.prepareStatement(sql);
+                 ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    UUID uuid = UUID.fromString(rs.getString("uuid"));
+                    map.put(uuid, rs.getBoolean("enabled"));
+                }
+            } finally {
+                dbManager.getReadLock().unlock();
             }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("加载收款开关数据失败: " + e.getMessage());
-        } finally {
-            dbManager.getReadLock().unlock();
         }
         return map;
     }

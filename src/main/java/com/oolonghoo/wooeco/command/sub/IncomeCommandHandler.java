@@ -107,9 +107,9 @@ public class IncomeCommandHandler extends AbstractSubCommandHandler {
     private BigDecimal getIncome(UUID uuid, IncomePeriod period) {
         switch (period) {
             case WEEK:
-                return economyManager.getWeeklyIncomeDecimal(uuid);
+                return economyManager.getWeeklyIncomeDecimalCached(uuid);
             case MONTH:
-                return economyManager.getMonthlyIncomeDecimal(uuid);
+                return economyManager.getMonthlyIncomeDecimalCached(uuid);
             default:
                 return economyManager.getDailyIncomeDecimal(uuid);
         }

@@ -16,7 +16,7 @@ import java.util.logging.Level;
  */
 public class DatabaseUpgrader {
     
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 4;
     
     private final WooEco plugin;
     private final DatabaseManager databaseManager;
@@ -107,8 +107,10 @@ public class DatabaseUpgrader {
     }
     
     private void upgradeToVersion(int version, Statement stmt) throws SQLException {
-        if (version == 2) {
-            upgradeToV2(stmt);
+        switch (version) {
+            case 2 -> upgradeToV2(stmt);
+            case 3 -> upgradeToV3(stmt);
+            case 4 -> upgradeToV4(stmt);
         }
     }
     
@@ -128,6 +130,31 @@ public class DatabaseUpgrader {
             stmt.execute("ALTER TABLE " + tablePrefix + "non_player_accounts MODIFY COLUMN balance DECIMAL(20," + dp + ") NOT NULL DEFAULT 0");
         } else {
             plugin.getLogger().info("SQLite 不支持 ALTER COLUMN 精度修改，新数据将使用新精度写入");
+        }
+    }
+
+    /**
+     * 升级到 v3：添加复合索引以提升查询性能
+     */
+    private void upgradeToV3(Statement stmt) throws SQLException {
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_uuid_reason_timestamp ON " + tablePrefix + "logs(uuid, reason, timestamp)");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_reason_timestamp ON " + tablePrefix + "logs(reason, timestamp)");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_sender_timestamp ON " + tablePrefix + "transactions(sender_uuid, timestamp)");
+        stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_receiver_timestamp ON " + tablePrefix + "transactions(receiver_uuid, timestamp)");
+    }
+
+    /**
+     * 升级到 v4：优化 getAccountByName 查询走索引而非全表扫描
+     * SQLite: 添加 player_name_lower 列及索引，用于大小写不敏感查询
+     * MySQL: 修改 player_name 列的 COLLATE 为 utf8mb4_ci，利用排序规则实现大小写不敏感
+     */
+    private void upgradeToV4(Statement stmt) throws SQLException {
+        if (databaseManager.isMySQL()) {
+            stmt.execute("ALTER TABLE " + tablePrefix + "accounts MODIFY COLUMN player_name VARCHAR(16) NOT NULL COLLATE utf8mb4_ci");
+        } else {
+            stmt.execute("ALTER TABLE " + tablePrefix + "accounts ADD COLUMN player_name_lower VARCHAR(16)");
+            stmt.execute("UPDATE " + tablePrefix + "accounts SET player_name_lower = LOWER(player_name)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_player_name_lower ON " + tablePrefix + "accounts(player_name_lower)");
         }
     }
     

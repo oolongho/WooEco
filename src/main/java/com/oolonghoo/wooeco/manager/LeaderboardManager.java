@@ -4,6 +4,7 @@ import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.database.dao.PlayerDAO;
 import com.oolonghoo.wooeco.model.IncomePeriod;
 import com.oolonghoo.wooeco.model.PlayerAccount;
+import com.oolonghoo.wooeco.util.AsyncUtils;
 import com.oolonghoo.wooeco.util.SchedulerUtils;
 
 import java.sql.SQLException;
@@ -13,11 +14,12 @@ import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -41,7 +43,13 @@ public class LeaderboardManager {
     private volatile Map<UUID, Integer> incomeRankCache;
     private volatile Map<UUID, Integer> weeklyIncomeRankCache;
     private volatile Map<UUID, Integer> monthlyIncomeRankCache;
-    
+
+    /** 玩家名(小写) -> 余额排名，O(1) 查找 */
+    private volatile Map<String, Integer> balanceNameRankIndex;
+
+    /** 防止缓存为空时重复触发刷新 */
+    private volatile boolean refreshInProgress;
+
     private final Set<String> blacklistNames;
     private final Set<UUID> blacklistUUIDs;
     private boolean blacklistEnabled;
@@ -58,8 +66,9 @@ public class LeaderboardManager {
         this.incomeRankCache = Collections.emptyMap();
         this.weeklyIncomeRankCache = Collections.emptyMap();
         this.monthlyIncomeRankCache = Collections.emptyMap();
-        this.blacklistNames = new HashSet<>();
-        this.blacklistUUIDs = new HashSet<>();
+        this.balanceNameRankIndex = Collections.emptyMap();
+        this.blacklistNames = ConcurrentHashMap.newKeySet();
+        this.blacklistUUIDs = ConcurrentHashMap.newKeySet();
         loadBlacklist();
     }
     
@@ -106,24 +115,40 @@ public class LeaderboardManager {
     
     public void refreshCache() {
         try {
-            List<PlayerAccount> rawBalanceTop = playerDAO.getTopBalances(cacheSize * 2);
-            List<PlayerAccount> rawIncomeTop = playerDAO.getTopIncomes(cacheSize * 2);
-            
+            int fetchSize = cacheSize * 2;
             long weekStart = getStartOfWeekTimestamp();
             long monthStart = getStartOfMonthTimestamp();
-            List<PlayerAccount> rawWeeklyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(weekStart, cacheSize * 2);
-            List<PlayerAccount> rawMonthlyIncomeTop = plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(monthStart, cacheSize * 2);
-            
+
+            // 4 个独立 DB 查询并行执行
+            CompletableFuture<List<PlayerAccount>> balanceFuture = AsyncUtils.supplyAsync(() -> safeGetTopBalances(fetchSize));
+            CompletableFuture<List<PlayerAccount>> incomeFuture = AsyncUtils.supplyAsync(() -> safeGetTopIncomes(fetchSize));
+            CompletableFuture<List<PlayerAccount>> weeklyFuture = AsyncUtils.supplyAsync(() -> safeGetTopIncomesByPeriod(weekStart, fetchSize));
+            CompletableFuture<List<PlayerAccount>> monthlyFuture = AsyncUtils.supplyAsync(() -> safeGetTopIncomesByPeriod(monthStart, fetchSize));
+
+            // 等待全部完成
+            CompletableFuture.allOf(balanceFuture, incomeFuture, weeklyFuture, monthlyFuture).join();
+
+            List<PlayerAccount> rawBalanceTop = balanceFuture.join();
+            List<PlayerAccount> rawIncomeTop = incomeFuture.join();
+            List<PlayerAccount> rawWeeklyIncomeTop = weeklyFuture.join();
+            List<PlayerAccount> rawMonthlyIncomeTop = monthlyFuture.join();
+
             List<PlayerAccount> filteredBalanceTop = filterBlacklist(rawBalanceTop);
             List<PlayerAccount> filteredIncomeTop = filterBlacklist(rawIncomeTop);
             List<PlayerAccount> filteredWeeklyIncomeTop = filterBlacklist(rawWeeklyIncomeTop);
             List<PlayerAccount> filteredMonthlyIncomeTop = filterBlacklist(rawMonthlyIncomeTop);
-            
+
             Map<UUID, Integer> newBalanceRankCache = buildRankCache(filteredBalanceTop);
             Map<UUID, Integer> newIncomeRankCache = buildRankCache(filteredIncomeTop);
             Map<UUID, Integer> newWeeklyIncomeRankCache = buildRankCache(filteredWeeklyIncomeTop);
             Map<UUID, Integer> newMonthlyIncomeRankCache = buildRankCache(filteredMonthlyIncomeTop);
-            
+
+            // 构建玩家名 -> 余额排名索引
+            Map<String, Integer> newNameRankIndex = new HashMap<>();
+            for (int i = 0; i < filteredBalanceTop.size(); i++) {
+                newNameRankIndex.put(filteredBalanceTop.get(i).getPlayerName().toLowerCase(), i + 1);
+            }
+
             synchronized (cacheLock) {
                 this.balanceTopCache = Collections.unmodifiableList(filteredBalanceTop);
                 this.incomeTopCache = Collections.unmodifiableList(filteredIncomeTop);
@@ -133,9 +158,37 @@ public class LeaderboardManager {
                 this.incomeRankCache = Collections.unmodifiableMap(newIncomeRankCache);
                 this.weeklyIncomeRankCache = Collections.unmodifiableMap(newWeeklyIncomeRankCache);
                 this.monthlyIncomeRankCache = Collections.unmodifiableMap(newMonthlyIncomeRankCache);
+                this.balanceNameRankIndex = Collections.unmodifiableMap(newNameRankIndex);
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             plugin.getLogger().severe("刷新排行榜缓存失败: " + e.getMessage());
+        }
+    }
+
+    private List<PlayerAccount> safeGetTopBalances(int size) {
+        try {
+            return playerDAO.getTopBalances(size);
+        } catch (SQLException e) {
+            plugin.getLogger().severe("查询余额排行榜失败: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<PlayerAccount> safeGetTopIncomes(int size) {
+        try {
+            return playerDAO.getTopIncomes(size);
+        } catch (SQLException e) {
+            plugin.getLogger().severe("查询日收入排行榜失败: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<PlayerAccount> safeGetTopIncomesByPeriod(long startTimestamp, int size) {
+        try {
+            return plugin.getDatabaseManager().getLogDAO().getTopIncomesByPeriod(startTimestamp, size);
+        } catch (SQLException e) {
+            plugin.getLogger().severe("查询周期收入排行榜失败: " + e.getMessage());
+            return Collections.emptyList();
         }
     }
 
@@ -153,7 +206,7 @@ public class LeaderboardManager {
     }
 
     private Map<UUID, Integer> buildRankCache(List<PlayerAccount> filteredAccounts) {
-        Map<UUID, Integer> rankCache = new ConcurrentHashMap<>();
+        Map<UUID, Integer> rankCache = new HashMap<>();
         for (int i = 0; i < filteredAccounts.size(); i++) {
             rankCache.put(filteredAccounts.get(i).getUuid(), i + 1);
         }
@@ -161,7 +214,17 @@ public class LeaderboardManager {
     }
 
     public void refreshCacheAsync() {
-        SchedulerUtils.runAsync(plugin, this::refreshCache);
+        if (refreshInProgress) {
+            return;
+        }
+        refreshInProgress = true;
+        SchedulerUtils.runAsync(plugin, () -> {
+            try {
+                refreshCache();
+            } finally {
+                refreshInProgress = false;
+            }
+        });
     }
 
     public List<PlayerAccount> getBalanceTop(int page, int perPage) {
@@ -179,7 +242,7 @@ public class LeaderboardManager {
             return Collections.emptyList();
         }
 
-        return new ArrayList<>(cache.subList(start, end));
+        return Collections.unmodifiableList(cache.subList(start, end));
     }
 
     public List<PlayerAccount> getIncomeTop(int page, int perPage) {
@@ -205,7 +268,7 @@ public class LeaderboardManager {
             return Collections.emptyList();
         }
 
-        return new ArrayList<>(cache.subList(start, end));
+        return Collections.unmodifiableList(cache.subList(start, end));
     }
 
     public int getTotalBalancePages(int perPage) {
@@ -247,20 +310,15 @@ public class LeaderboardManager {
     }
 
     /**
-     * 按玩家名查找余额排名（仅从内存缓存，零DB调用）
+     * 按玩家名查找余额排名（O(1)，零DB调用）
      */
     public int getBalanceRankByName(String playerName) {
-        List<PlayerAccount> cache = balanceTopCache;
-        if (cache.isEmpty()) {
+        Map<String, Integer> index = balanceNameRankIndex;
+        if (index.isEmpty()) {
             refreshCacheAsync();
             return -1;
         }
-        for (PlayerAccount account : cache) {
-            if (account.getPlayerName().equalsIgnoreCase(playerName)) {
-                return balanceRankCache.getOrDefault(account.getUuid(), -1);
-            }
-        }
-        return -1;
+        return index.getOrDefault(playerName.toLowerCase(), -1);
     }
 
     /**

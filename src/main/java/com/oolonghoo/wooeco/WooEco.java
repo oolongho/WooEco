@@ -109,6 +109,7 @@ public class WooEco extends JavaPlugin {
         logManager = new LogManager(this);
         economyManager = new EconomyManager(this);
         taxManager = new TaxManager(this);
+        taxManager.cacheTaxReceiver();
         transactionManager = new TransactionManager(this);
         leaderboardManager = new LeaderboardManager(this);
         offlineTransferManager = new OfflineTransferManager(this);
@@ -150,6 +151,10 @@ public class WooEco extends JavaPlugin {
     
     @Override
     public void onDisable() {
+        if (logManager != null) {
+            logManager.shutdown();
+        }
+
         if (playerDataManager != null) {
             playerDataManager.saveAll();
         }
@@ -277,6 +282,9 @@ public class WooEco extends JavaPlugin {
         }
         if (nonPlayerAccountManager != null) {
             nonPlayerAccountManager.reload();
+        }
+        if (taxManager != null) {
+            taxManager.cacheTaxReceiver();
         }
     }
     

@@ -1,6 +1,7 @@
 package com.oolonghoo.wooeco.manager;
 
 import com.oolonghoo.wooeco.WooEco;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 
 import java.math.BigDecimal;
@@ -8,14 +9,57 @@ import java.util.UUID;
 
 /**
  * 税率管理器
- * 
+ *
  */
 public class TaxManager {
     
     private final WooEco plugin;
     
+    private UUID cachedTaxReceiverUUID = null;
+    private String cachedTaxReceiverName = null;
+    private boolean cachedTaxEnabled = true;
+    private double cachedTaxRate = 5;
+    
     public TaxManager(WooEco plugin) {
         this.plugin = plugin;
+    }
+    
+    /**
+     * 解析并缓存税收配置，应在插件加载和 reload 时调用
+     */
+    public void cacheTaxReceiver() {
+        cachedTaxEnabled = plugin.getConfig().getBoolean("transaction.tax.enabled", true);
+        cachedTaxRate = plugin.getConfig().getDouble("transaction.tax.rate", 5);
+
+        String receiver = plugin.getConfig().getString("transaction.tax.receiver", null);
+        if (receiver == null || receiver.isEmpty()) {
+            cachedTaxReceiverUUID = null;
+            cachedTaxReceiverName = null;
+            return;
+        }
+        
+        try {
+            cachedTaxReceiverUUID = UUID.fromString(receiver);
+            OfflinePlayer player = plugin.getServer().getOfflinePlayer(cachedTaxReceiverUUID);
+            cachedTaxReceiverName = player.getName();
+        } catch (IllegalArgumentException e) {
+            // receiver 是玩家名而非 UUID
+            Player player = plugin.getServer().getPlayer(receiver);
+            if (player != null) {
+                cachedTaxReceiverUUID = player.getUniqueId();
+                cachedTaxReceiverName = player.getName();
+            } else {
+                OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(receiver);
+                if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
+                    cachedTaxReceiverUUID = offlinePlayer.getUniqueId();
+                    cachedTaxReceiverName = receiver;
+                } else {
+                    plugin.getLogger().warning(String.format("[WooEco] 税收接收者 '%s' 未找到，请检查配置", receiver));
+                    cachedTaxReceiverUUID = null;
+                    cachedTaxReceiverName = null;
+                }
+            }
+        }
     }
     
     public double calculateTax(UUID uuid, double amount) {
@@ -36,11 +80,11 @@ public class TaxManager {
     }
     
     public boolean isTaxEnabled() {
-        return plugin.getConfig().getBoolean("transaction.tax.enabled", true);
+        return cachedTaxEnabled;
     }
     
     public double getTaxRate() {
-        return plugin.getConfig().getDouble("transaction.tax.rate", 5);
+        return cachedTaxRate;
     }
     
     public boolean hasBypassTax(UUID uuid) {
@@ -51,51 +95,15 @@ public class TaxManager {
         return player.hasPermission("wooeco.bypass.tax");
     }
     
-    public String getTaxReceiver() {
-        return plugin.getConfig().getString("transaction.tax.receiver", null);
-    }
-    
     public boolean isTaxDestroyed() {
-        String receiver = getTaxReceiver();
-        return receiver == null || receiver.isEmpty();
+        return cachedTaxReceiverUUID == null;
     }
     
     public UUID getTaxReceiverUUID() {
-        String receiver = getTaxReceiver();
-        if (receiver == null || receiver.isEmpty()) {
-            return null;
-        }
-        
-        try {
-            return UUID.fromString(receiver);
-        } catch (IllegalArgumentException e) {
-            Player player = plugin.getServer().getPlayer(receiver);
-            if (player != null) {
-                return player.getUniqueId();
-            }
-            
-            org.bukkit.OfflinePlayer offlinePlayer = plugin.getServer().getOfflinePlayer(receiver);
-            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-                return offlinePlayer.getUniqueId();
-            }
-            
-            plugin.getLogger().warning(String.format("[WooEco] 税收接收者 '%s' 未找到，请检查配置", receiver));
-            return null;
-        }
+        return cachedTaxReceiverUUID;
     }
     
     public String getTaxReceiverName() {
-        String receiver = getTaxReceiver();
-        if (receiver == null || receiver.isEmpty()) {
-            return null;
-        }
-        
-        try {
-            UUID uuid = UUID.fromString(receiver);
-            org.bukkit.OfflinePlayer player = plugin.getServer().getOfflinePlayer(uuid);
-            return player.getName();
-        } catch (IllegalArgumentException e) {
-            return receiver;
-        }
+        return cachedTaxReceiverName;
     }
 }

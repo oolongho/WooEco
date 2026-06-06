@@ -126,7 +126,7 @@ public class DatabaseManager {
                 "CREATE TABLE IF NOT EXISTS " + tablePrefix + "accounts (" +
                 "id INT AUTO_INCREMENT PRIMARY KEY, " +
                 "uuid VARCHAR(36) NOT NULL UNIQUE, " +
-                "player_name VARCHAR(16) NOT NULL, " +
+                "player_name VARCHAR(16) NOT NULL COLLATE utf8mb4_ci, " +
                 "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "daily_income DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "last_income_reset BIGINT NOT NULL, " +
@@ -140,6 +140,7 @@ public class DatabaseManager {
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                 "uuid VARCHAR(36) NOT NULL UNIQUE, " +
                 "player_name VARCHAR(16) NOT NULL, " +
+                "player_name_lower VARCHAR(16), " +
                 "balance DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "daily_income DECIMAL(20," + decimalPlaces + ") NOT NULL DEFAULT 0, " +
                 "last_income_reset INTEGER NOT NULL, " +
@@ -151,6 +152,7 @@ public class DatabaseManager {
             if (!config.isMySQL()) {
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_uuid ON " + tablePrefix + "accounts(uuid)");
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_balance ON " + tablePrefix + "accounts(balance)");
+                stmt.execute("CREATE INDEX IF NOT EXISTS idx_accounts_player_name_lower ON " + tablePrefix + "accounts(player_name_lower)");
             }
             
             String transactionsTable = config.isMySQL() ?
@@ -286,6 +288,12 @@ public class DatabaseManager {
             if (!config.isMySQL()) {
                 stmt.execute("CREATE INDEX IF NOT EXISTS idx_uuid_mapping_online ON " + tablePrefix + "uuid_mapping(online_uuid)");
             }
+
+            // 复合索引：优化按原因和时间范围的查询
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_uuid_reason_timestamp ON " + tablePrefix + "logs(uuid, reason, timestamp)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_logs_reason_timestamp ON " + tablePrefix + "logs(reason, timestamp)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_sender_timestamp ON " + tablePrefix + "transactions(sender_uuid, timestamp)");
+            stmt.execute("CREATE INDEX IF NOT EXISTS idx_transactions_receiver_timestamp ON " + tablePrefix + "transactions(receiver_uuid, timestamp)");
         } finally {
             writeLock.unlock();
         }
@@ -304,6 +312,43 @@ public class DatabaseManager {
     public Connection getConnection() throws SQLException {
         return dataSource.getConnection();
     }
+
+    /**
+     * 在写锁和数据库事务内执行操作，保证原子性。
+     * 事务内只应做 DB 操作，不要触发事件或记录日志。
+     *
+     * @param operation 接收 Connection 并返回结果的函数
+     * @param <T>       返回值类型
+     * @return 操作结果
+     * @throws SQLException 数据库异常时抛出，事务已回滚
+     */
+    public <T> T executeInTransaction(TransactionOperation<T> operation) throws SQLException {
+        getWriteLock().lock();
+        try (Connection conn = getConnection()) {
+            boolean originalAutoCommit = conn.getAutoCommit();
+            try {
+                conn.setAutoCommit(false);
+                T result = operation.execute(conn);
+                conn.commit();
+                return result;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(originalAutoCommit);
+            }
+        } finally {
+            getWriteLock().unlock();
+        }
+    }
+
+    /**
+     * 事务操作函数式接口，允许抛出 SQLException
+     */
+    @FunctionalInterface
+    public interface TransactionOperation<T> {
+        T execute(Connection conn) throws SQLException;
+    }
     
     public void close() {
         if (dataSource != null && !dataSource.isClosed()) {
@@ -312,11 +357,11 @@ public class DatabaseManager {
     }
     
     public Lock getReadLock() {
-        return isMySQL() ? NO_OP_LOCK : rwLock.readLock();
+        return isMySQL() ? rwLock.readLock() : NO_OP_LOCK;
     }
     
     public Lock getWriteLock() {
-        return isMySQL() ? NO_OP_LOCK : rwLock.writeLock();
+        return isMySQL() ? rwLock.writeLock() : NO_OP_LOCK;
     }
     
     public String getTablePrefix() {

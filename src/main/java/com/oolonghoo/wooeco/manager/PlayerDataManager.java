@@ -13,7 +13,9 @@ import org.bukkit.entity.Player;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,10 +49,8 @@ public class PlayerDataManager {
     }
     
     public PlayerAccount getAccount(UUID uuid) {
-        long startTime = System.nanoTime();
-        
         if (disableCache) {
-            return getAccountDirectFromDB(uuid, startTime);
+            return getAccountDirectFromDB(uuid);
         }
         
         PlayerAccount account = onlineCache.get(uuid);
@@ -59,50 +59,10 @@ public class PlayerDataManager {
             return account;
         }
         
+        // 缓存未命中：loadPlayer 已在 PlayerJoinEvent 中预先放入占位账户，
+        // 此处未命中说明玩家不在线，返回 null
         plugin.getDebugManager().cacheMiss(uuid);
-        
-        account = AsyncUtils.supplyAsyncWithTimeout(() -> {
-            try {
-                return playerDAO.getAccount(uuid);
-            } catch (SQLException e) {
-                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
-                return null;
-            }
-        }, null);
-        
-        if (account == null) {
-            OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(uuid);
-            if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-                String name = offlinePlayer.getName();
-                if (name == null) {
-                    name = uuid.toString().substring(0, 8);
-                }
-                account = createNewAccount(uuid, name);
-            } else if (plugin.getDatabaseConfig().getUuidMode() == UUIDMode.SEMIONLINE) {
-                UUID offlineUuid = plugin.getDatabaseManager().getUUIDMappingDAO().getOfflineUUID(uuid);
-                if (offlineUuid != null) {
-                    OfflinePlayer mappedPlayer = Bukkit.getOfflinePlayer(offlineUuid);
-                    if (mappedPlayer.hasPlayedBefore() || mappedPlayer.isOnline()) {
-                        String name = mappedPlayer.getName();
-                        if (name == null) {
-                            name = uuid.toString().substring(0, 8);
-                        }
-                        account = createNewAccount(uuid, name);
-                    }
-                }
-            }
-            if (account == null) {
-                return null;
-            }
-        }
-        
-        onlineCache.put(uuid, account);
-        updateNameIndex(account.getPlayerName(), uuid);
-        
-        long elapsed = System.nanoTime() - startTime;
-        plugin.getDebugManager().playerLookup("UUID", uuid.toString(), uuid, elapsed);
-        
-        return account;
+        return null;
     }
     
     public PlayerAccount getOrCreateAccount(UUID uuid, String playerName) {
@@ -113,7 +73,7 @@ public class PlayerDataManager {
         return account;
     }
     
-    private PlayerAccount getAccountDirectFromDB(UUID uuid, long startTime) {
+    private PlayerAccount getAccountDirectFromDB(UUID uuid) {
         PlayerAccount account = AsyncUtils.supplyAsyncWithTimeout(() -> {
             try {
                 return playerDAO.getAccount(uuid);
@@ -149,17 +109,12 @@ public class PlayerDataManager {
             }
         }
         
-        long elapsed = System.nanoTime() - startTime;
-        plugin.getDebugManager().playerLookup("UUID", uuid.toString(), uuid, elapsed);
-        
         return account;
     }
     
     public PlayerAccount getAccount(String playerName) {
-        long startTime = System.nanoTime();
-        
         if (disableCache) {
-            return getAccountByNameDirectFromDB(playerName, startTime);
+            return getAccountByNameDirectFromDB(playerName);
         }
         
         String lookupKey = usernameIgnoreCase ? playerName.toLowerCase() : playerName;
@@ -173,42 +128,18 @@ public class PlayerDataManager {
             }
         }
         
+        // 尝试通过在线玩家查找
         Player onlinePlayer = Bukkit.getPlayerExact(playerName);
         if (onlinePlayer != null) {
             return getAccount(onlinePlayer.getUniqueId());
         }
         
+        // 缓存未命中且玩家不在线，返回 null
         plugin.getDebugManager().cacheMiss(null);
-        
-        PlayerAccount account = AsyncUtils.supplyAsyncWithTimeout(() -> {
-            try {
-                return playerDAO.getAccountByName(playerName);
-            } catch (SQLException e) {
-                plugin.getLogger().severe(String.format("获取玩家账户失败：%s", e.getMessage()));
-                return null;
-            }
-        }, null);
-        
-        if (account != null) {
-            onlineCache.put(account.getUuid(), account);
-            updateNameIndex(account.getPlayerName(), account.getUuid());
-            
-            long elapsed = System.nanoTime() - startTime;
-            plugin.getDebugManager().playerLookup("NAME", playerName, account.getUuid(), elapsed);
-            
-            return account;
-        }
-        
-        OfflinePlayer offlinePlayer = Bukkit.getOfflinePlayer(playerName);
-        if (offlinePlayer.hasPlayedBefore() || offlinePlayer.isOnline()) {
-            UUID uuid = plugin.getUuidHandler().getUUID(playerName);
-            return getAccount(uuid);
-        }
-        
         return null;
     }
     
-    private PlayerAccount getAccountByNameDirectFromDB(String playerName, long startTime) {
+    private PlayerAccount getAccountByNameDirectFromDB(String playerName) {
         PlayerAccount account = AsyncUtils.supplyAsyncWithTimeout(() -> {
             try {
                 return playerDAO.getAccountByName(playerName);
@@ -219,8 +150,6 @@ public class PlayerDataManager {
         }, null);
         
         if (account != null) {
-            long elapsed = System.nanoTime() - startTime;
-            plugin.getDebugManager().playerLookup("NAME", playerName, account.getUuid(), elapsed);
             return account;
         }
         
@@ -275,29 +204,32 @@ public class PlayerDataManager {
         if (disableCache) {
             return;
         }
-        
-        PlayerAccount account = AsyncUtils.supplyAsyncWithTimeout(() -> {
+
+        // 先放入占位账户（余额为0），避免后续操作因缓存未命中而阻塞主线程
+        Player player = Bukkit.getPlayer(uuid);
+        String name = player != null ? player.getName() : uuid.toString().substring(0, 8);
+        PlayerAccount placeholder = new PlayerAccount(uuid, name);
+        onlineCache.put(uuid, placeholder);
+        updateNameIndex(name, uuid);
+
+        // 异步加载真实数据并替换占位账户
+        SchedulerUtils.runAsync(plugin, () -> {
             try {
-                return playerDAO.getAccount(uuid);
+                PlayerAccount account = playerDAO.getAccount(uuid);
+                if (account == null) {
+                    account = createNewAccount(uuid, name);
+                    if (account == null) {
+                        plugin.getLogger().severe(String.format("无法为玩家 %s 创建账户", name));
+                        return;
+                    }
+                }
+                checkAndResetDailyIncome(account);
+                onlineCache.put(uuid, account);
+                updateNameIndex(account.getPlayerName(), uuid);
             } catch (SQLException e) {
                 plugin.getLogger().severe(String.format("加载玩家数据失败：%s", e.getMessage()));
-                return null;
             }
-        }, null);
-        
-        if (account == null) {
-            Player player = Bukkit.getPlayer(uuid);
-            String name = player != null ? player.getName() : uuid.toString().substring(0, 8);
-            account = createNewAccount(uuid, name);
-            if (account == null) {
-                plugin.getLogger().severe(String.format("无法为玩家 %s 创建账户", name));
-                return;
-            }
-        }
-        
-        checkAndResetDailyIncome(account);
-        onlineCache.put(uuid, account);
-        updateNameIndex(account.getPlayerName(), uuid);
+        });
     }
     
     public void unloadPlayer(UUID uuid) {
@@ -315,36 +247,35 @@ public class PlayerDataManager {
     }
     
     public void saveAccount(PlayerAccount account) {
-        SchedulerUtils.runAsync(plugin, () -> {
-            try {
-                playerDAO.saveOrUpdateAccount(account);
-            } catch (SQLException e) {
-                plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
-            }
-        });
-    }
-    
-    public void saveAccountSync(PlayerAccount account) {
         try {
             playerDAO.saveOrUpdateAccount(account);
         } catch (SQLException e) {
             plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
         }
     }
+
+    public void saveAccountSync(PlayerAccount account) {
+        saveAccount(account);
+    }
     
     public void saveAll() {
         if (disableCache) {
             return;
         }
-        
+
+        List<PlayerAccount> dirtyAccounts = new ArrayList<>();
         for (PlayerAccount account : onlineCache.values()) {
             if (account.isDirty()) {
-                try {
-                    playerDAO.saveOrUpdateAccount(account);
-                } catch (SQLException e) {
-                    plugin.getLogger().severe(String.format("保存玩家数据失败：%s", e.getMessage()));
-                }
+                dirtyAccounts.add(account);
             }
+        }
+
+        if (dirtyAccounts.isEmpty()) return;
+
+        try {
+            playerDAO.saveAllBatch(dirtyAccounts);
+        } catch (SQLException e) {
+            plugin.getLogger().severe(String.format("批量保存玩家数据失败：%s", e.getMessage()));
         }
     }
     
@@ -402,24 +333,20 @@ public class PlayerDataManager {
     }
     
     public Collection<PlayerAccount> getAllAccounts() {
-        return AsyncUtils.supplyAsyncWithTimeout(() -> {
-            try {
-                return playerDAO.getAllAccounts();
-            } catch (SQLException e) {
-                plugin.getLogger().severe(String.format("获取所有账户失败：%s", e.getMessage()));
-                return onlineCache.values();
-            }
-        }, onlineCache.values());
+        try {
+            return playerDAO.getAllAccounts();
+        } catch (SQLException e) {
+            plugin.getLogger().severe(String.format("获取所有账户失败：%s", e.getMessage()));
+            return onlineCache.values();
+        }
     }
     
     public int getAccountCount() {
-        return AsyncUtils.supplyAsyncWithTimeout(() -> {
-            try {
-                return playerDAO.countAccounts();
-            } catch (SQLException e) {
-                return onlineCache.size();
-            }
-        }, onlineCache.size());
+        try {
+            return playerDAO.countAccounts();
+        } catch (SQLException e) {
+            return onlineCache.size();
+        }
     }
     
     public boolean isOnline(UUID uuid) {
@@ -475,11 +402,24 @@ public class PlayerDataManager {
         if (disableCache) {
             return;
         }
-        
+
         if (saveDirty) {
             saveAll();
         }
-        onlineCache.clear();
-        nameIndex.clear();
+
+        // 异步刷新所有在线玩家数据，而非清空缓存，避免缓存雪崩
+        SchedulerUtils.runAsync(plugin, () -> {
+            for (UUID uuid : new ArrayList<>(onlineCache.keySet())) {
+                try {
+                    PlayerAccount freshAccount = playerDAO.getAccount(uuid);
+                    if (freshAccount != null) {
+                        onlineCache.put(uuid, freshAccount);
+                        updateNameIndex(freshAccount.getPlayerName(), uuid);
+                    }
+                } catch (SQLException e) {
+                    // 忽略单个玩家刷新失败
+                }
+            }
+        });
     }
 }

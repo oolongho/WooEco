@@ -216,15 +216,15 @@ public class EconomyManager {
         eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
         synchronized (account) {
             account.setBalance(eventBalance);
-        }
-        newBalance = eventBalance;
-        
-        if (reason == BalanceChangeReason.PAYMENT_RECEIVED) {
-            BigDecimal actualChange = newBalance.subtract(oldBalance);
-            if (actualChange.compareTo(BigDecimal.ZERO) > 0) {
-                account.addDailyIncome(actualChange);
+            // 在锁内计算并设置每日收入，避免竞态条件
+            if (reason == BalanceChangeReason.PAYMENT_RECEIVED) {
+                BigDecimal actualChange = eventBalance.subtract(oldBalance);
+                if (actualChange.compareTo(BigDecimal.ZERO) > 0) {
+                    account.addDailyIncome(actualChange);
+                }
             }
         }
+        newBalance = eventBalance;
         
         playerDataManager.saveAccount(account);
         
@@ -300,11 +300,20 @@ public class EconomyManager {
             return cached;
         }
         
-        // No cache: sync query once
-        BigDecimal result = getWeeklyIncomeDecimal(uuid);
-        weeklyIncomeCache.put(uuid, result);
-        weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
-        return result;
+        // No cache: return ZERO immediately, async load for next request
+        SchedulerUtils.runAsync(plugin, () -> {
+            try {
+                long fromTimestamp = getStartOfWeekTimestamp();
+                BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+                weeklyIncomeCache.put(uuid, result);
+                weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+            } catch (SQLException e) {
+                plugin.getLogger().warning("异步加载周收入缓存失败: " + e.getMessage());
+                weeklyIncomeCache.put(uuid, BigDecimal.ZERO);
+                weeklyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+            }
+        });
+        return BigDecimal.ZERO;
     }
     
     public BigDecimal getMonthlyIncomeDecimalCached(UUID uuid) {
@@ -330,13 +339,32 @@ public class EconomyManager {
             return cached;
         }
         
-        // No cache: sync query once
-        BigDecimal result = getMonthlyIncomeDecimal(uuid);
-        monthlyIncomeCache.put(uuid, result);
-        monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
-        return result;
+        // No cache: return ZERO immediately, async load for next request
+        SchedulerUtils.runAsync(plugin, () -> {
+            try {
+                long fromTimestamp = getStartOfMonthTimestamp();
+                BigDecimal result = plugin.getDatabaseManager().getLogDAO().getIncomeInPeriod(uuid, fromTimestamp);
+                monthlyIncomeCache.put(uuid, result);
+                monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+            } catch (SQLException e) {
+                plugin.getLogger().warning("异步加载月收入缓存失败: " + e.getMessage());
+                monthlyIncomeCache.put(uuid, BigDecimal.ZERO);
+                monthlyIncomeRefreshTime.put(uuid, System.currentTimeMillis());
+            }
+        });
+        return BigDecimal.ZERO;
     }
     
+    /**
+     * 清理指定玩家的收入缓存，防止内存泄漏
+     */
+    public void clearIncomeCache(UUID uuid) {
+        weeklyIncomeCache.remove(uuid);
+        monthlyIncomeCache.remove(uuid);
+        weeklyIncomeRefreshTime.remove(uuid);
+        monthlyIncomeRefreshTime.remove(uuid);
+    }
+
     private long getStartOfDayTimestamp() {
         return LocalDate.now(ZoneId.systemDefault())
                 .atStartOfDay(ZoneId.systemDefault())
@@ -367,30 +395,27 @@ public class EconomyManager {
         int totalAccounts;
     }
     
+    /**
+     * 收集允许批量操作的账户信息。
+     * 不再逐个触发 BalanceChangeEvent（批量操作是管理员操作，无需逐个触发事件），
+     * 仅对 withdraw 操作检查余额是否足够。
+     */
     private BatchContext collectAllowedAccounts(Collection<PlayerAccount> accounts, BigDecimal amount,
-                                                BalanceChangeReason reason, boolean isWithdraw, boolean isSet) {
+                                                boolean isWithdraw) {
         BatchContext ctx = new BatchContext();
         ctx.totalAccounts = accounts.size();
-        
+
         for (PlayerAccount account : accounts) {
             UUID uuid = account.getUuid();
             BigDecimal oldBalance = account.getBalance();
-            
+
             if (isWithdraw && oldBalance.compareTo(amount) < 0) {
                 continue;
             }
-            
-            BigDecimal newBalance = isSet ? amount : (isWithdraw ? oldBalance.subtract(amount) : oldBalance.add(amount));
-            BigDecimal changeAmount = isSet ? amount.subtract(oldBalance) : (isWithdraw ? amount.negate() : amount);
-            
-            BalanceChangeEvent event = new BalanceChangeEvent(uuid, oldBalance, newBalance, changeAmount, reason);
-            SchedulerUtils.callEvent(plugin, event);
-            
-            if (!event.isCancelled()) {
-                ctx.allowedUuids.add(uuid);
-                ctx.oldBalances.put(uuid, oldBalance);
-                ctx.nameMap.put(uuid, account.getPlayerName());
-            }
+
+            ctx.allowedUuids.add(uuid);
+            ctx.oldBalances.put(uuid, oldBalance);
+            ctx.nameMap.put(uuid, account.getPlayerName());
         }
         return ctx;
     }
@@ -418,20 +443,20 @@ public class EconomyManager {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return new BatchResult(0, 0, amount);
         }
-        
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts.isEmpty()) {
+
+        // onlineOnly=false 时也只遍历在线玩家（只有在线玩家的事件监听器才有意义），离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             return new BatchResult(0, 0, amount);
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, false);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, false);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             return new BatchResult(0, ctx.totalAccounts, amount);
         }
-        
+
         try {
-            playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, true, ctx.allowedUuids);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, onlineOnly, ctx.allowedUuids);
             processBatchResult(ctx, amount, "DEPOSIT_ALL", false, false, operator, operatorName);
             return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
@@ -444,20 +469,20 @@ public class EconomyManager {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             return new BatchResult(0, 0, amount);
         }
-        
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts.isEmpty()) {
+
+        // onlineOnly=false 时也只遍历在线玩家（只有在线玩家的事件监听器才有意义），离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             return new BatchResult(0, 0, amount);
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, true, false);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, true);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             return new BatchResult(0, ctx.totalAccounts, amount);
         }
-        
+
         try {
-            playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, true, ctx.allowedUuids);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, onlineOnly, ctx.allowedUuids);
             processBatchResult(ctx, amount, "WITHDRAW_ALL", true, false, operator, operatorName);
             return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
@@ -470,20 +495,20 @@ public class EconomyManager {
         if (amount.compareTo(BigDecimal.ZERO) < 0) {
             return new BatchResult(0, 0, amount);
         }
-        
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts.isEmpty()) {
+
+        // onlineOnly=false 时也只遍历在线玩家（只有在线玩家的事件监听器才有意义），离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             return new BatchResult(0, 0, amount);
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, true);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, false);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             return new BatchResult(0, ctx.totalAccounts, amount);
         }
-        
+
         try {
-            playerDataManager.saveAll();
-            int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, true, ctx.allowedUuids);
+            int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, onlineOnly, ctx.allowedUuids);
             processBatchResult(ctx, amount, "SET_ALL", false, true, operator, operatorName);
             return new BatchResult(updated, ctx.totalAccounts - updated, amount);
         } catch (SQLException e) {
@@ -494,22 +519,22 @@ public class EconomyManager {
     
     public void depositAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
                                 Consumer<BatchResult> callback) {
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts == null || accounts.isEmpty()) {
+        // onlineOnly=false 时也只遍历在线玩家，离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, 0, amount));
             return;
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, false);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, false);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
-        
-        playerDataManager.saveAll();
+
         SchedulerUtils.runAsync(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, true, ctx.allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().depositAllBatch(amount, onlineOnly, ctx.allowedUuids);
                 SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "DEPOSIT_ALL", false, false, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
@@ -523,22 +548,22 @@ public class EconomyManager {
     
     public void withdrawAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
                                  Consumer<BatchResult> callback) {
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts == null || accounts.isEmpty()) {
+        // onlineOnly=false 时也只遍历在线玩家，离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, 0, amount));
             return;
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, true, false);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, true);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
-        
-        playerDataManager.saveAll();
+
         SchedulerUtils.runAsync(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, true, ctx.allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().withdrawAllBatch(amount, onlineOnly, ctx.allowedUuids);
                 SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "WITHDRAW_ALL", true, false, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
@@ -552,22 +577,22 @@ public class EconomyManager {
     
     public void setAllAsync(BigDecimal amount, boolean onlineOnly, String operator, String operatorName,
                             Consumer<BatchResult> callback) {
-        Collection<PlayerAccount> accounts = onlineOnly ? playerDataManager.getOnlineAccounts() : playerDataManager.getAllAccounts();
-        if (accounts == null || accounts.isEmpty()) {
+        // onlineOnly=false 时也只遍历在线玩家，离线玩家由 SQL 全量更新
+        Collection<PlayerAccount> accounts = playerDataManager.getOnlineAccounts();
+        if (accounts.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, 0, amount));
             return;
         }
-        
-        BatchContext ctx = collectAllowedAccounts(accounts, amount, BalanceChangeReason.ADMIN, false, true);
-        if (ctx.allowedUuids.isEmpty()) {
+
+        BatchContext ctx = collectAllowedAccounts(accounts, amount, false);
+        if (ctx.allowedUuids.isEmpty() && onlineOnly) {
             callback.accept(new BatchResult(0, ctx.totalAccounts, amount));
             return;
         }
-        
-        playerDataManager.saveAll();
+
         SchedulerUtils.runAsync(plugin, () -> {
             try {
-                int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, true, ctx.allowedUuids);
+                int updated = plugin.getPlayerDataManager().getPlayerDAO().setAllBatch(amount, onlineOnly, ctx.allowedUuids);
                 SchedulerUtils.runGlobal(plugin, () -> {
                     processBatchResult(ctx, amount, "SET_ALL", false, true, operator, operatorName);
                     callback.accept(new BatchResult(updated, ctx.totalAccounts - updated, amount));
