@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -48,7 +49,7 @@ public class LeaderboardManager {
     private volatile Map<String, Integer> balanceNameRankIndex;
 
     /** 防止缓存为空时重复触发刷新 */
-    private volatile boolean refreshInProgress;
+    private final AtomicBoolean refreshInProgress = new AtomicBoolean(false);
 
     private final Set<String> blacklistNames;
     private final Set<UUID> blacklistUUIDs;
@@ -214,15 +215,14 @@ public class LeaderboardManager {
     }
 
     public void refreshCacheAsync() {
-        if (refreshInProgress) {
+        if (!refreshInProgress.compareAndSet(false, true)) {
             return;
         }
-        refreshInProgress = true;
         SchedulerUtils.runAsync(plugin, () -> {
             try {
                 refreshCache();
             } finally {
-                refreshInProgress = false;
+                refreshInProgress.set(false);
             }
         });
     }

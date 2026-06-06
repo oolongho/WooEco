@@ -48,7 +48,16 @@ public class AsyncUtils {
     
     public static void shutdown() {
         if (executor != null) {
-            executor.shutdownNow();
+            executor.shutdown();
+            try {
+                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    plugin.getLogger().warning("[WooEco] 异步线程池未在10秒内关闭，强制终止");
+                    executor.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                executor.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
     }
     

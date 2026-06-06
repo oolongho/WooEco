@@ -58,16 +58,17 @@ public class DatabaseManager {
         this.tablePrefix = config.getMysqlTablePrefix();
     }
     
-    public void initialize() {
+    public void initialize() throws SQLException {
         try {
             initDataSource();
             createTables();
             initializeDAOs();
-            
+
             DatabaseUpgrader upgrader = new DatabaseUpgrader(plugin, this);
             upgrader.checkAndUpgrade();
         } catch (SQLException e) {
-            plugin.getLogger().log(java.util.logging.Level.SEVERE, "数据库初始化失败: " + e.getMessage(), e);
+            plugin.getLogger().severe("数据库初始化失败: " + e.getMessage());
+            throw e;
         }
     }
     

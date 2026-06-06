@@ -49,7 +49,7 @@ import java.util.UUID;
  */
 public class WooEcoAPI {
     
-    private static WooEco instance;
+    private static volatile WooEco instance;
     
     /**
      * 初始化API（内部使用）

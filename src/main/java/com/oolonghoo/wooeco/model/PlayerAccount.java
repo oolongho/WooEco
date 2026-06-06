@@ -61,13 +61,12 @@ public class PlayerAccount {
     
     public synchronized void setPlayerName(String playerName) {
         this.playerName = playerName;
+        this.updatedAt.set(System.currentTimeMillis());
         this.dirty.set(true);
     }
     
     public BigDecimal getBalance() {
-        synchronized (this) {
-            return balance;
-        }
+        return balance;
     }
     
     public double getBalanceDouble() {
@@ -77,9 +76,9 @@ public class PlayerAccount {
     public void setBalance(BigDecimal newBalance) {
         synchronized (this) {
             this.balance = newBalance;
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.updatedAt.set(System.currentTimeMillis());
-        this.dirty.set(true);
     }
     
     public void setBalance(double newBalance) {
@@ -87,9 +86,7 @@ public class PlayerAccount {
     }
     
     public BigDecimal getDailyIncome() {
-        synchronized (this) {
-            return dailyIncome;
-        }
+        return dailyIncome;
     }
     
     public double getDailyIncomeDouble() {
@@ -99,8 +96,9 @@ public class PlayerAccount {
     public void setDailyIncome(BigDecimal income) {
         synchronized (this) {
             this.dailyIncome = income;
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.dirty.set(true);
     }
     
     public void setDailyIncome(double income) {
@@ -110,8 +108,9 @@ public class PlayerAccount {
     public void addDailyIncome(BigDecimal amount) {
         synchronized (this) {
             this.dailyIncome = this.dailyIncome.add(amount);
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.dirty.set(true);
     }
     
     public void addDailyIncome(double amount) {

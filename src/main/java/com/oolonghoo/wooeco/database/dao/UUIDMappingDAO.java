@@ -10,6 +10,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * UUID映射数据访问对象
+ * 先获取锁再获取连接，与 executeInTransaction 保持一致，避免 MySQL 下死锁
+ */
 public class UUIDMappingDAO {
     private final DatabaseManager dbManager;
     private final String tablePrefix;
@@ -21,38 +25,36 @@ public class UUIDMappingDAO {
 
     public UUID getOnlineUUID(UUID offlineUuid) {
         String sql = "SELECT online_uuid FROM " + tablePrefix + "uuid_mapping WHERE offline_uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, offlineUuid.toString());
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    return UUID.fromString(rs.getString("online_uuid"));
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, offlineUuid.toString());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return UUID.fromString(rs.getString("online_uuid"));
             }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("查询UUID映射失败: " + e.getMessage());
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return null;
     }
 
     public UUID getOfflineUUID(UUID onlineUuid) {
         String sql = "SELECT offline_uuid FROM " + tablePrefix + "uuid_mapping WHERE online_uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, onlineUuid.toString());
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    return UUID.fromString(rs.getString("offline_uuid"));
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, onlineUuid.toString());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return UUID.fromString(rs.getString("offline_uuid"));
             }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("查询UUID映射失败: " + e.getMessage());
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return null;
     }
@@ -66,39 +68,37 @@ public class UUIDMappingDAO {
             sql = "INSERT INTO " + tablePrefix + "uuid_mapping (offline_uuid, online_uuid, player_name, updated_at) VALUES (?, ?, ?, ?) " +
                   "ON CONFLICT(offline_uuid) DO UPDATE SET online_uuid = excluded.online_uuid, player_name = excluded.player_name, updated_at = excluded.updated_at";
         }
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, offlineUuid.toString());
-                stmt.setString(2, onlineUuid.toString());
-                stmt.setString(3, playerName);
-                stmt.setLong(4, System.currentTimeMillis());
-                stmt.executeUpdate();
-            } finally {
-                dbManager.getWriteLock().unlock();
-            }
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, offlineUuid.toString());
+            stmt.setString(2, onlineUuid.toString());
+            stmt.setString(3, playerName);
+            stmt.setLong(4, System.currentTimeMillis());
+            stmt.executeUpdate();
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("保存UUID映射失败: " + e.getMessage());
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
     public Map<UUID, UUID> loadAll() {
         Map<UUID, UUID> map = new HashMap<>();
         String sql = "SELECT offline_uuid, online_uuid FROM " + tablePrefix + "uuid_mapping";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql);
-                 ResultSet rs = stmt.executeQuery()) {
-                while (rs.next()) {
-                    UUID offline = UUID.fromString(rs.getString("offline_uuid"));
-                    UUID online = UUID.fromString(rs.getString("online_uuid"));
-                    map.put(offline, online);
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                UUID offline = UUID.fromString(rs.getString("offline_uuid"));
+                UUID online = UUID.fromString(rs.getString("online_uuid"));
+                map.put(offline, online);
             }
         } catch (SQLException e) {
             dbManager.getPlugin().getLogger().warning("加载UUID映射失败: " + e.getMessage());
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return map;
     }

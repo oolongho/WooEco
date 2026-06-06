@@ -37,9 +37,7 @@ public class NonPlayerAccount {
     }
     
     public BigDecimal getBalance() {
-        synchronized (this) {
-            return balance;
-        }
+        return balance;
     }
     
     public double getBalanceDouble() {
@@ -49,9 +47,9 @@ public class NonPlayerAccount {
     public void setBalance(BigDecimal newBalance) {
         synchronized (this) {
             this.balance = newBalance;
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.updatedAt.set(System.currentTimeMillis());
-        this.dirty.set(true);
     }
     
     public void setBalance(double newBalance) {
@@ -62,9 +60,9 @@ public class NonPlayerAccount {
         synchronized (this) {
             BigDecimal newBalance = this.balance.add(amount);
             this.balance = newBalance;
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.updatedAt.set(System.currentTimeMillis());
-        this.dirty.set(true);
     }
     
     public void withdraw(BigDecimal amount) {
@@ -74,15 +72,13 @@ public class NonPlayerAccount {
                 newBalance = BigDecimal.ZERO;
             }
             this.balance = newBalance;
+            this.updatedAt.set(System.currentTimeMillis());
+            this.dirty.set(true);
         }
-        this.updatedAt.set(System.currentTimeMillis());
-        this.dirty.set(true);
     }
     
     public boolean hasEnough(BigDecimal amount) {
-        synchronized (this) {
-            return this.balance.compareTo(amount) >= 0;
-        }
+        return this.balance.compareTo(amount) >= 0;
     }
     
     public long getCreatedAt() {

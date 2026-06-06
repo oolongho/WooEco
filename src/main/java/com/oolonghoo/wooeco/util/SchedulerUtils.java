@@ -7,6 +7,7 @@ import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 /**
  * Folia 兼容的调度工具类。
@@ -26,7 +27,13 @@ public final class SchedulerUtils {
      * @param task   要执行的任务
      */
     public static void runAsync(Plugin plugin, Runnable task) {
-        Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
+        Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> {
+            try {
+                task.run();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "[WooEco] 异步任务执行异常", e);
+            }
+        });
     }
 
     /**
@@ -37,7 +44,13 @@ public final class SchedulerUtils {
      * @param delayMs 延迟时间（毫秒）
      */
     public static void runAsyncDelayed(Plugin plugin, Runnable task, long delayMs) {
-        Bukkit.getAsyncScheduler().runDelayed(plugin, scheduledTask -> task.run(), delayMs, TimeUnit.MILLISECONDS);
+        Bukkit.getAsyncScheduler().runDelayed(plugin, scheduledTask -> {
+            try {
+                task.run();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "[WooEco] 异步延迟任务执行异常", e);
+            }
+        }, delayMs, TimeUnit.MILLISECONDS);
     }
 
     /**
@@ -50,7 +63,13 @@ public final class SchedulerUtils {
      * @return 调度任务句柄，可用于取消任务
      */
     public static ScheduledTask runAsyncTimer(Plugin plugin, Runnable task, long delayMs, long periodMs) {
-        return Bukkit.getAsyncScheduler().runAtFixedRate(plugin, scheduledTask -> task.run(), delayMs, periodMs, TimeUnit.MILLISECONDS);
+        return Bukkit.getAsyncScheduler().runAtFixedRate(plugin, scheduledTask -> {
+            try {
+                task.run();
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.SEVERE, "[WooEco] 异步定时任务执行异常", e);
+            }
+        }, delayMs, periodMs, TimeUnit.MILLISECONDS);
     }
 
     /**

@@ -15,10 +15,10 @@ public class TaxManager {
     
     private final WooEco plugin;
     
-    private UUID cachedTaxReceiverUUID = null;
-    private String cachedTaxReceiverName = null;
-    private boolean cachedTaxEnabled = true;
-    private double cachedTaxRate = 5;
+    private volatile UUID cachedTaxReceiverUUID = null;
+    private volatile String cachedTaxReceiverName = null;
+    private volatile boolean cachedTaxEnabled = true;
+    private volatile double cachedTaxRate = 5;
     
     public TaxManager(WooEco plugin) {
         this.plugin = plugin;

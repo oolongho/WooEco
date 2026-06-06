@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * 玩家数据访问对象
  * 使用读写锁优化并发性能
- * 先获取连接再获取锁，避免持锁期间等待连接池
+ * 先获取锁再获取连接，与 executeInTransaction 保持一致，避免 MySQL 下死锁
  *
  */
 public class PlayerDAO {
@@ -29,17 +29,16 @@ public class PlayerDAO {
 
     public PlayerAccount getAccount(UUID uuid) throws SQLException {
         String sql = "SELECT " + ACCOUNT_COLUMNS + " FROM " + tablePrefix + "accounts WHERE uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, uuid.toString());
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    return mapResultSetToPlayerAccount(rs);
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, uuid.toString());
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return mapResultSetToPlayerAccount(rs);
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return null;
     }
@@ -55,18 +54,17 @@ public class PlayerDAO {
         } else {
             sql = "SELECT " + ACCOUNT_COLUMNS + " FROM " + tablePrefix + "accounts WHERE player_name = ?";
         }
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                // SQLite ignoreCase 模式下参数需小写以匹配 player_name_lower
-                stmt.setString(1, ignoreCase && !dbManager.isMySQL() ? name.toLowerCase() : name);
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    return mapResultSetToPlayerAccount(rs);
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            // SQLite ignoreCase 模式下参数需小写以匹配 player_name_lower
+            stmt.setString(1, ignoreCase && !dbManager.isMySQL() ? name.toLowerCase() : name);
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return mapResultSetToPlayerAccount(rs);
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return null;
     }
@@ -75,29 +73,28 @@ public class PlayerDAO {
         String sql = dbManager.isMySQL()
             ? "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)"
             : "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, player_name_lower, balance, daily_income, last_income_reset, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, account.getUuid().toString());
-                stmt.setString(2, account.getPlayerName());
-                if (!dbManager.isMySQL()) {
-                    stmt.setString(3, account.getPlayerName().toLowerCase());
-                    stmt.setBigDecimal(4, account.getBalance());
-                    stmt.setBigDecimal(5, account.getDailyIncome());
-                    stmt.setLong(6, account.getLastIncomeReset());
-                    stmt.setLong(7, account.getCreatedAt());
-                    stmt.setLong(8, account.getUpdatedAt());
-                } else {
-                    stmt.setBigDecimal(3, account.getBalance());
-                    stmt.setBigDecimal(4, account.getDailyIncome());
-                    stmt.setLong(5, account.getLastIncomeReset());
-                    stmt.setLong(6, account.getCreatedAt());
-                    stmt.setLong(7, account.getUpdatedAt());
-                }
-                stmt.executeUpdate();
-            } finally {
-                dbManager.getWriteLock().unlock();
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, account.getUuid().toString());
+            stmt.setString(2, account.getPlayerName());
+            if (!dbManager.isMySQL()) {
+                stmt.setString(3, account.getPlayerName().toLowerCase());
+                stmt.setBigDecimal(4, account.getBalance());
+                stmt.setBigDecimal(5, account.getDailyIncome());
+                stmt.setLong(6, account.getLastIncomeReset());
+                stmt.setLong(7, account.getCreatedAt());
+                stmt.setLong(8, account.getUpdatedAt());
+            } else {
+                stmt.setBigDecimal(3, account.getBalance());
+                stmt.setBigDecimal(4, account.getDailyIncome());
+                stmt.setLong(5, account.getLastIncomeReset());
+                stmt.setLong(6, account.getCreatedAt());
+                stmt.setLong(7, account.getUpdatedAt());
             }
+            stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
@@ -105,29 +102,28 @@ public class PlayerDAO {
         String sql = dbManager.isMySQL()
             ? "UPDATE " + tablePrefix + "accounts SET player_name = ?, balance = ?, daily_income = ?, last_income_reset = ?, updated_at = ? WHERE uuid = ?"
             : "UPDATE " + tablePrefix + "accounts SET player_name = ?, player_name_lower = ?, balance = ?, daily_income = ?, last_income_reset = ?, updated_at = ? WHERE uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setString(1, account.getPlayerName());
-                if (!dbManager.isMySQL()) {
-                    stmt.setString(2, account.getPlayerName().toLowerCase());
-                    stmt.setBigDecimal(3, account.getBalance());
-                    stmt.setBigDecimal(4, account.getDailyIncome());
-                    stmt.setLong(5, account.getLastIncomeReset());
-                    stmt.setLong(6, System.currentTimeMillis());
-                    stmt.setString(7, account.getUuid().toString());
-                } else {
-                    stmt.setBigDecimal(2, account.getBalance());
-                    stmt.setBigDecimal(3, account.getDailyIncome());
-                    stmt.setLong(4, account.getLastIncomeReset());
-                    stmt.setLong(5, System.currentTimeMillis());
-                    stmt.setString(6, account.getUuid().toString());
-                }
-                stmt.executeUpdate();
-                account.markSaved();
-            } finally {
-                dbManager.getWriteLock().unlock();
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, account.getPlayerName());
+            if (!dbManager.isMySQL()) {
+                stmt.setString(2, account.getPlayerName().toLowerCase());
+                stmt.setBigDecimal(3, account.getBalance());
+                stmt.setBigDecimal(4, account.getDailyIncome());
+                stmt.setLong(5, account.getLastIncomeReset());
+                stmt.setLong(6, System.currentTimeMillis());
+                stmt.setString(7, account.getUuid().toString());
+            } else {
+                stmt.setBigDecimal(2, account.getBalance());
+                stmt.setBigDecimal(3, account.getDailyIncome());
+                stmt.setLong(4, account.getLastIncomeReset());
+                stmt.setLong(5, System.currentTimeMillis());
+                stmt.setString(6, account.getUuid().toString());
             }
+            stmt.executeUpdate();
+            account.markSaved();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
@@ -145,48 +141,46 @@ public class PlayerDAO {
                   "daily_income = excluded.daily_income, last_income_reset = excluded.last_income_reset, updated_at = excluded.updated_at";
         }
 
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                long now = System.currentTimeMillis();
-                stmt.setString(1, account.getUuid().toString());
-                stmt.setString(2, account.getPlayerName());
-                if (!dbManager.isMySQL()) {
-                    stmt.setString(3, account.getPlayerName().toLowerCase());
-                    stmt.setBigDecimal(4, account.getBalance());
-                    stmt.setBigDecimal(5, account.getDailyIncome());
-                    stmt.setLong(6, account.getLastIncomeReset());
-                    stmt.setLong(7, account.getCreatedAt());
-                    stmt.setLong(8, now);
-                } else {
-                    stmt.setBigDecimal(3, account.getBalance());
-                    stmt.setBigDecimal(4, account.getDailyIncome());
-                    stmt.setLong(5, account.getLastIncomeReset());
-                    stmt.setLong(6, account.getCreatedAt());
-                    stmt.setLong(7, now);
-                }
-                stmt.executeUpdate();
-                account.markSaved();
-            } finally {
-                dbManager.getWriteLock().unlock();
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            long now = System.currentTimeMillis();
+            stmt.setString(1, account.getUuid().toString());
+            stmt.setString(2, account.getPlayerName());
+            if (!dbManager.isMySQL()) {
+                stmt.setString(3, account.getPlayerName().toLowerCase());
+                stmt.setBigDecimal(4, account.getBalance());
+                stmt.setBigDecimal(5, account.getDailyIncome());
+                stmt.setLong(6, account.getLastIncomeReset());
+                stmt.setLong(7, account.getCreatedAt());
+                stmt.setLong(8, now);
+            } else {
+                stmt.setBigDecimal(3, account.getBalance());
+                stmt.setBigDecimal(4, account.getDailyIncome());
+                stmt.setLong(5, account.getLastIncomeReset());
+                stmt.setLong(6, account.getCreatedAt());
+                stmt.setLong(7, now);
             }
+            stmt.executeUpdate();
+            account.markSaved();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
     public List<PlayerAccount> getTopBalances(int limit) throws SQLException {
         String sql = "SELECT " + ACCOUNT_COLUMNS + " FROM " + tablePrefix + "accounts ORDER BY balance DESC LIMIT ?";
         List<PlayerAccount> accounts = new ArrayList<>();
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, limit);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    accounts.add(mapResultSetToPlayerAccount(rs));
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return accounts;
     }
@@ -194,17 +188,16 @@ public class PlayerDAO {
     public List<PlayerAccount> getTopIncomes(int limit) throws SQLException {
         String sql = "SELECT " + ACCOUNT_COLUMNS + " FROM " + tablePrefix + "accounts ORDER BY daily_income DESC LIMIT ?";
         List<PlayerAccount> accounts = new ArrayList<>();
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setInt(1, limit);
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    accounts.add(mapResultSetToPlayerAccount(rs));
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, limit);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return accounts;
     }
@@ -212,61 +205,57 @@ public class PlayerDAO {
     public List<PlayerAccount> getAllAccounts() throws SQLException {
         String sql = "SELECT " + ACCOUNT_COLUMNS + " FROM " + tablePrefix + "accounts";
         List<PlayerAccount> accounts = new ArrayList<>();
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                ResultSet rs = stmt.executeQuery();
-                while (rs.next()) {
-                    accounts.add(mapResultSetToPlayerAccount(rs));
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                accounts.add(mapResultSetToPlayerAccount(rs));
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return accounts;
     }
 
     public int countAccounts() throws SQLException {
         String sql = "SELECT COUNT(*) FROM " + tablePrefix + "accounts";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    return rs.getInt(1);
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1);
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return 0;
     }
 
     public void resetAllDailyIncome() throws SQLException {
         String sql = "UPDATE " + tablePrefix + "accounts SET daily_income = 0, last_income_reset = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, System.currentTimeMillis());
-                stmt.executeUpdate();
-            } finally {
-                dbManager.getWriteLock().unlock();
-            }
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, System.currentTimeMillis());
+            stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
     public void updateBalance(UUID uuid, BigDecimal newBalance) throws SQLException {
         String sql = "UPDATE " + tablePrefix + "accounts SET balance = ?, updated_at = ? WHERE uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setBigDecimal(1, newBalance);
-                stmt.setLong(2, System.currentTimeMillis());
-                stmt.setString(3, uuid.toString());
-                stmt.executeUpdate();
-            } finally {
-                dbManager.getWriteLock().unlock();
-            }
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setBigDecimal(1, newBalance);
+            stmt.setLong(2, System.currentTimeMillis());
+            stmt.setString(3, uuid.toString());
+            stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
@@ -285,48 +274,45 @@ public class PlayerDAO {
 
     public void resetDailyIncome(UUID uuid) throws SQLException {
         String sql = "UPDATE " + tablePrefix + "accounts SET daily_income = 0, last_income_reset = ? WHERE uuid = ?";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                stmt.setLong(1, System.currentTimeMillis());
-                stmt.setString(2, uuid.toString());
-                stmt.executeUpdate();
-            } finally {
-                dbManager.getWriteLock().unlock();
-            }
+        dbManager.getWriteLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setLong(1, System.currentTimeMillis());
+            stmt.setString(2, uuid.toString());
+            stmt.executeUpdate();
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
     public java.math.BigDecimal getTotalBalance() throws SQLException {
         String sql = "SELECT SUM(balance) FROM " + tablePrefix + "accounts";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    java.math.BigDecimal total = rs.getBigDecimal(1);
-                    return total != null ? total : java.math.BigDecimal.ZERO;
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                java.math.BigDecimal total = rs.getBigDecimal(1);
+                return total != null ? total : java.math.BigDecimal.ZERO;
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return java.math.BigDecimal.ZERO;
     }
 
     public java.math.BigDecimal getTotalDailyIncome() throws SQLException {
         String sql = "SELECT SUM(daily_income) FROM " + tablePrefix + "accounts";
-        try (Connection conn = dbManager.getConnection()) {
-            dbManager.getReadLock().lock();
-            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                ResultSet rs = stmt.executeQuery();
-                if (rs.next()) {
-                    java.math.BigDecimal total = rs.getBigDecimal(1);
-                    return total != null ? total : java.math.BigDecimal.ZERO;
-                }
-            } finally {
-                dbManager.getReadLock().unlock();
+        dbManager.getReadLock().lock();
+        try (Connection conn = dbManager.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            ResultSet rs = stmt.executeQuery();
+            if (rs.next()) {
+                java.math.BigDecimal total = rs.getBigDecimal(1);
+                return total != null ? total : java.math.BigDecimal.ZERO;
             }
+        } finally {
+            dbManager.getReadLock().unlock();
         }
         return java.math.BigDecimal.ZERO;
     }
@@ -357,24 +343,23 @@ public class PlayerDAO {
     public int depositAllBatch(BigDecimal amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
         if (!onlineOnly || onlineUuids == null || onlineUuids.isEmpty()) {
             String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, updated_at = ?";
-            try (Connection conn = dbManager.getConnection()) {
-                dbManager.getWriteLock().lock();
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setBigDecimal(1, amount);
-                    stmt.setLong(2, System.currentTimeMillis());
-                    return stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
-                }
+            dbManager.getWriteLock().lock();
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setBigDecimal(1, amount);
+                stmt.setLong(2, System.currentTimeMillis());
+                return stmt.executeUpdate();
+            } finally {
+                dbManager.getWriteLock().unlock();
             }
         }
 
         int total = 0;
+        dbManager.getWriteLock().lock();
         try (Connection conn = dbManager.getConnection()) {
             for (int i = 0; i < onlineUuids.size(); i += BATCH_SIZE) {
                 List<UUID> batch = onlineUuids.subList(i, Math.min(i + BATCH_SIZE, onlineUuids.size()));
                 String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance + ?, updated_at = ? WHERE uuid IN (" + buildPlaceholders(batch.size()) + ")";
-                dbManager.getWriteLock().lock();
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     int paramIndex = 1;
                     stmt.setBigDecimal(paramIndex++, amount);
@@ -383,10 +368,10 @@ public class PlayerDAO {
                         stmt.setString(paramIndex++, uuid.toString());
                     }
                     total += stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
                 }
             }
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
         return total;
     }
@@ -394,25 +379,24 @@ public class PlayerDAO {
     public int withdrawAllBatch(BigDecimal amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
         if (!onlineOnly || onlineUuids == null || onlineUuids.isEmpty()) {
             String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance - ?, updated_at = ? WHERE balance >= ?";
-            try (Connection conn = dbManager.getConnection()) {
-                dbManager.getWriteLock().lock();
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setBigDecimal(1, amount);
-                    stmt.setLong(2, System.currentTimeMillis());
-                    stmt.setBigDecimal(3, amount);
-                    return stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
-                }
+            dbManager.getWriteLock().lock();
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setBigDecimal(1, amount);
+                stmt.setLong(2, System.currentTimeMillis());
+                stmt.setBigDecimal(3, amount);
+                return stmt.executeUpdate();
+            } finally {
+                dbManager.getWriteLock().unlock();
             }
         }
 
         int total = 0;
+        dbManager.getWriteLock().lock();
         try (Connection conn = dbManager.getConnection()) {
             for (int i = 0; i < onlineUuids.size(); i += BATCH_SIZE) {
                 List<UUID> batch = onlineUuids.subList(i, Math.min(i + BATCH_SIZE, onlineUuids.size()));
                 String sql = "UPDATE " + tablePrefix + "accounts SET balance = balance - ?, updated_at = ? WHERE balance >= ? AND uuid IN (" + buildPlaceholders(batch.size()) + ")";
-                dbManager.getWriteLock().lock();
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     int paramIndex = 1;
                     stmt.setBigDecimal(paramIndex++, amount);
@@ -422,10 +406,10 @@ public class PlayerDAO {
                         stmt.setString(paramIndex++, uuid.toString());
                     }
                     total += stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
                 }
             }
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
         return total;
     }
@@ -444,68 +428,74 @@ public class PlayerDAO {
                   "ON DUPLICATE KEY UPDATE player_name = new_val.player_name, balance = new_val.balance, " +
                   "daily_income = new_val.daily_income, last_income_reset = new_val.last_income_reset, updated_at = new_val.updated_at";
         } else {
-            sql = "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, balance, daily_income, last_income_reset, created_at, updated_at) " +
-                  "VALUES (?, ?, ?, ?, ?, ?, ?) " +
-                  "ON CONFLICT(uuid) DO UPDATE SET player_name = excluded.player_name, balance = excluded.balance, " +
+            sql = "INSERT INTO " + tablePrefix + "accounts (uuid, player_name, player_name_lower, balance, daily_income, last_income_reset, created_at, updated_at) " +
+                  "VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+                  "ON CONFLICT(uuid) DO UPDATE SET player_name = excluded.player_name, player_name_lower = excluded.player_name_lower, balance = excluded.balance, " +
                   "daily_income = excluded.daily_income, last_income_reset = excluded.last_income_reset, updated_at = excluded.updated_at";
         }
 
+        dbManager.getWriteLock().lock();
         try (Connection conn = dbManager.getConnection()) {
-            dbManager.getWriteLock().lock();
-            try {
-                boolean originalAutoCommit = conn.getAutoCommit();
-                conn.setAutoCommit(false);
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    long now = System.currentTimeMillis();
-                    for (PlayerAccount account : accounts) {
-                        stmt.setString(1, account.getUuid().toString());
-                        stmt.setString(2, account.getPlayerName());
+            boolean originalAutoCommit = conn.getAutoCommit();
+            conn.setAutoCommit(false);
+            try (PreparedStatement stmt = conn.prepareStatement(sql)) {
+                long now = System.currentTimeMillis();
+                for (PlayerAccount account : accounts) {
+                    stmt.setString(1, account.getUuid().toString());
+                    stmt.setString(2, account.getPlayerName());
+                    if (!dbManager.isMySQL()) {
+                        stmt.setString(3, account.getPlayerName().toLowerCase());
+                        stmt.setBigDecimal(4, account.getBalance());
+                        stmt.setBigDecimal(5, account.getDailyIncome());
+                        stmt.setLong(6, account.getLastIncomeReset());
+                        stmt.setLong(7, account.getCreatedAt());
+                        stmt.setLong(8, now);
+                    } else {
                         stmt.setBigDecimal(3, account.getBalance());
                         stmt.setBigDecimal(4, account.getDailyIncome());
                         stmt.setLong(5, account.getLastIncomeReset());
                         stmt.setLong(6, account.getCreatedAt());
                         stmt.setLong(7, now);
-                        stmt.addBatch();
                     }
-                    stmt.executeBatch();
-                    conn.commit();
-                    // 全部成功后标记为已保存
-                    for (PlayerAccount account : accounts) {
-                        account.markSaved();
-                    }
-                } catch (SQLException e) {
-                    conn.rollback();
-                    throw e;
-                } finally {
-                    conn.setAutoCommit(originalAutoCommit);
+                    stmt.addBatch();
                 }
+                stmt.executeBatch();
+                conn.commit();
+                // 全部成功后标记为已保存
+                for (PlayerAccount account : accounts) {
+                    account.markSaved();
+                }
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
             } finally {
-                dbManager.getWriteLock().unlock();
+                conn.setAutoCommit(originalAutoCommit);
             }
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
     }
 
     public int setAllBatch(BigDecimal amount, boolean onlineOnly, List<UUID> onlineUuids) throws SQLException {
         if (!onlineOnly || onlineUuids == null || onlineUuids.isEmpty()) {
             String sql = "UPDATE " + tablePrefix + "accounts SET balance = ?, updated_at = ?";
-            try (Connection conn = dbManager.getConnection()) {
-                dbManager.getWriteLock().lock();
-                try (PreparedStatement stmt = conn.prepareStatement(sql)) {
-                    stmt.setBigDecimal(1, amount);
-                    stmt.setLong(2, System.currentTimeMillis());
-                    return stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
-                }
+            dbManager.getWriteLock().lock();
+            try (Connection conn = dbManager.getConnection();
+                 PreparedStatement stmt = conn.prepareStatement(sql)) {
+                stmt.setBigDecimal(1, amount);
+                stmt.setLong(2, System.currentTimeMillis());
+                return stmt.executeUpdate();
+            } finally {
+                dbManager.getWriteLock().unlock();
             }
         }
 
         int total = 0;
+        dbManager.getWriteLock().lock();
         try (Connection conn = dbManager.getConnection()) {
             for (int i = 0; i < onlineUuids.size(); i += BATCH_SIZE) {
                 List<UUID> batch = onlineUuids.subList(i, Math.min(i + BATCH_SIZE, onlineUuids.size()));
                 String sql = "UPDATE " + tablePrefix + "accounts SET balance = ?, updated_at = ? WHERE uuid IN (" + buildPlaceholders(batch.size()) + ")";
-                dbManager.getWriteLock().lock();
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     int paramIndex = 1;
                     stmt.setBigDecimal(paramIndex++, amount);
@@ -514,10 +504,10 @@ public class PlayerDAO {
                         stmt.setString(paramIndex++, uuid.toString());
                     }
                     total += stmt.executeUpdate();
-                } finally {
-                    dbManager.getWriteLock().unlock();
                 }
             }
+        } finally {
+            dbManager.getWriteLock().unlock();
         }
         return total;
     }

@@ -16,11 +16,11 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * 日志管理器
@@ -37,10 +37,10 @@ public class LogManager {
     private final DateTimeFormatter fileDateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
     /** 日志队列，logBalanceChange 入队，定时任务消费 */
-    private final ConcurrentLinkedQueue<EconomyLog> logQueue = new ConcurrentLinkedQueue<>();
+    private final LinkedBlockingQueue<EconomyLog> logQueue = new LinkedBlockingQueue<>(10000);
 
     /** 按日期+类型缓存的 BufferedWriter，避免每次写入都打开关闭文件 */
-    private final Map<String, BufferedWriter> writerCache = new HashMap<>();
+    private final Map<String, BufferedWriter> writerCache = new ConcurrentHashMap<>();
 
     /** 插件禁用时置为 true，停止递归调度 */
     private volatile boolean shutdown = false;
@@ -82,7 +82,9 @@ public class LogManager {
             operator, operatorName, reason
         );
 
-        logQueue.add(log);
+        if (!logQueue.offer(log)) {
+            plugin.getLogger().warning("日志队列已满，丢弃日志: " + log.getAction());
+        }
     }
 
     /**

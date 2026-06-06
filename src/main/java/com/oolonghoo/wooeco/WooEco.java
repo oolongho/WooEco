@@ -99,8 +99,14 @@ public class WooEco extends JavaPlugin {
         messageManager.initialize();
         
         databaseManager = new DatabaseManager(this);
-        databaseManager.initialize();
-        getLogger().info(String.format("[WooEco] 数据库连接成功 (%s)", databaseConfig.getType()));
+        try {
+            databaseManager.initialize();
+            getLogger().info(String.format("[WooEco] 数据库连接成功 (%s)", databaseConfig.getType()));
+        } catch (SQLException e) {
+            getLogger().severe("[WooEco] 数据库初始化失败，插件将禁用: " + e.getMessage());
+            setEnabled(false);
+            return;
+        }
         
         debugManager = new DebugManager(this);
         cooldownManager = new CooldownManager(this);
@@ -151,36 +157,65 @@ public class WooEco extends JavaPlugin {
     
     @Override
     public void onDisable() {
-        if (logManager != null) {
-            logManager.shutdown();
+        try {
+            if (logManager != null) {
+                logManager.shutdown();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] 日志管理器关闭异常: " + e.getMessage());
         }
 
-        if (playerDataManager != null) {
-            playerDataManager.saveAll();
+        try {
+            if (playerDataManager != null) {
+                playerDataManager.saveAll();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] 玩家数据保存异常: " + e.getMessage());
         }
-        
-        if (nonPlayerAccountManager != null) {
-            nonPlayerAccountManager.saveAll();
+
+        try {
+            if (nonPlayerAccountManager != null) {
+                nonPlayerAccountManager.saveAll();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] 非玩家账户保存异常: " + e.getMessage());
         }
-        
-        if (debugManager != null) {
-            debugManager.shutdown();
+
+        try {
+            if (debugManager != null) {
+                debugManager.shutdown();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] 调试管理器关闭异常: " + e.getMessage());
         }
-        
+
+        // 先关闭异步线程池，再关闭数据库连接
         AsyncUtils.shutdown();
-        
-        if (redisSyncManager != null) {
-            redisSyncManager.shutdown();
+
+        try {
+            if (redisSyncManager != null) {
+                redisSyncManager.shutdown();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] Redis 同步管理器关闭异常: " + e.getMessage());
         }
-        
-        if (databaseManager != null) {
-            databaseManager.close();
+
+        try {
+            if (databaseManager != null) {
+                databaseManager.close();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] 数据库关闭异常: " + e.getMessage());
         }
-        
-        if (vaultHook != null) {
-            vaultHook.unhook();
+
+        try {
+            if (vaultHook != null) {
+                vaultHook.unhook();
+            }
+        } catch (Exception e) {
+            getLogger().severe("[WooEco] Vault 卸载异常: " + e.getMessage());
         }
-        
+
         getLogger().info("[WooEco] 插件已禁用");
     }
     

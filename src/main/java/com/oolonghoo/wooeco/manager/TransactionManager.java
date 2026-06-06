@@ -2,7 +2,16 @@ package com.oolonghoo.wooeco.manager;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 import com.oolonghoo.wooeco.WooEco;
 import com.oolonghoo.wooeco.api.events.BalanceChangeEvent;
@@ -98,121 +107,144 @@ public class TransactionManager {
             return new TransactionResult(false, "余额不足", BigDecimal.ZERO, BigDecimal.ZERO);
         }
         
-        // 按 UUID 排序确定锁获取顺序，防止 A→B 和 B→A 同时转账时死锁
-        PlayerAccount firstAccount, secondAccount;
-        if (senderUuid.compareTo(receiverUuid) < 0) {
-            firstAccount = senderAccount;
-            secondAccount = receiverAccount;
-        } else {
-            firstAccount = receiverAccount;
-            secondAccount = senderAccount;
-        }
-
-        // 事务提交后需要触发的后置操作数据
-        BigDecimal senderOldBalance;
-        BigDecimal receiverOldBalance;
-        BigDecimal senderNewBalance;
-        BigDecimal receiverNewBalance;
-        // 税收接收者相关
+        // 1. 先确定税收接收者（taxManager 的缓存是线程安全的，可在锁外读取）
         UUID taxReceiverUuid = null;
         PlayerAccount taxReceiverAccount = null;
-        BigDecimal taxReceiverOldBalance = null;
-        BigDecimal taxReceiverNewBalance = null;
-
-        synchronized (firstAccount) {
-            synchronized (secondAccount) {
-                // 事件可能修改了金额，需在锁内重新校验余额
-                if (!economyManager.has(senderUuid, totalCost)) {
-                    return new TransactionResult(false, "余额不足", BigDecimal.ZERO, BigDecimal.ZERO);
+        if (tax.compareTo(BigDecimal.ZERO) > 0 && !taxManager.isTaxDestroyed()) {
+            taxReceiverUuid = taxManager.getTaxReceiverUUID();
+            if (taxReceiverUuid != null) {
+                String taxReceiverName = taxManager.getTaxReceiverName();
+                if (taxReceiverName == null) {
+                    taxReceiverName = "TaxReceiver";
                 }
-
-                // 计算新余额
-                senderOldBalance = senderAccount.getBalance();
-                receiverOldBalance = receiverAccount.getBalance();
-                senderNewBalance = senderOldBalance.subtract(totalCost);
-                receiverNewBalance = receiverOldBalance.add(amount);
-
-                // 税收接收者
-                if (tax.compareTo(BigDecimal.ZERO) > 0 && !taxManager.isTaxDestroyed()) {
-                    taxReceiverUuid = taxManager.getTaxReceiverUUID();
-                    if (taxReceiverUuid != null) {
-                        String taxReceiverName = taxManager.getTaxReceiverName();
-                        if (taxReceiverName == null) {
-                            taxReceiverName = "TaxReceiver";
-                        }
-                        taxReceiverAccount = playerDataManager.getOrCreateAccount(taxReceiverUuid, taxReceiverName);
-                        if (taxReceiverAccount != null) {
-                            taxReceiverOldBalance = taxReceiverAccount.getBalance();
-                            taxReceiverNewBalance = taxReceiverOldBalance.add(tax);
-                        }
-                    }
-                }
-
-                // 在单一 DB 事务中原子更新所有余额
-                final UUID fTaxReceiverUuid = taxReceiverUuid;
-                final BigDecimal fTaxReceiverNewBalance = taxReceiverNewBalance;
-
-                try {
-                    PlayerDAO playerDAO = plugin.getDatabaseManager().getPlayerDAO();
-                    plugin.getDatabaseManager().executeInTransaction(conn -> {
-                        playerDAO.updateBalanceInTransaction(conn, senderUuid, senderNewBalance);
-                        playerDAO.updateBalanceInTransaction(conn, receiverUuid, receiverNewBalance);
-                        if (fTaxReceiverUuid != null && fTaxReceiverNewBalance != null) {
-                            playerDAO.updateBalanceInTransaction(conn, fTaxReceiverUuid, fTaxReceiverNewBalance);
-                        }
-                        return null;
-                    });
-                } catch (SQLException e) {
-                    plugin.getLogger().severe(String.format("转账事务执行失败：%s", e.getMessage()));
-                    return new TransactionResult(false, "转账失败，请稍后重试", BigDecimal.ZERO, BigDecimal.ZERO);
-                }
-
-                // DB 事务提交成功，更新内存中的 PlayerAccount
-                senderAccount.setBalance(senderNewBalance);
-                receiverAccount.setBalance(receiverNewBalance);
-                receiverAccount.addDailyIncome(amount);
-                if (taxReceiverAccount != null && taxReceiverNewBalance != null) {
-                    synchronized (taxReceiverAccount) {
-                        taxReceiverAccount.setBalance(taxReceiverNewBalance);
-                    }
-                }
+                taxReceiverAccount = playerDataManager.getOrCreateAccount(taxReceiverUuid, taxReceiverName);
             }
+        }
+
+        // 2. 收集所有需要锁的 UUID，去重后按排序确定锁获取顺序，防止死锁
+        List<UUID> lockUuids = new ArrayList<>();
+        Set<UUID> seen = new HashSet<>();
+        for (UUID uuid : Arrays.asList(senderUuid, receiverUuid, taxReceiverUuid)) {
+            if (uuid != null && seen.add(uuid)) {
+                lockUuids.add(uuid);
+            }
+        }
+        Collections.sort(lockUuids);
+
+        // 3. 按排序顺序获取对应的 PlayerAccount
+        Map<UUID, PlayerAccount> accountMap = new HashMap<>();
+        accountMap.put(senderUuid, senderAccount);
+        accountMap.put(receiverUuid, receiverAccount);
+        if (taxReceiverUuid != null && taxReceiverAccount != null) {
+            accountMap.put(taxReceiverUuid, taxReceiverAccount);
+        }
+        List<PlayerAccount> orderedAccounts = new ArrayList<>();
+        for (UUID uuid : lockUuids) {
+            orderedAccounts.add(accountMap.get(uuid));
+        }
+
+        // 事务提交后需要触发的后置操作数据（使用数组作为可变持有者，以便在 lambda 中赋值）
+        final BigDecimal[] senderOldBalance = new BigDecimal[1];
+        final BigDecimal[] receiverOldBalance = new BigDecimal[1];
+        final BigDecimal[] senderNewBalance = new BigDecimal[1];
+        final BigDecimal[] receiverNewBalance = new BigDecimal[1];
+        final BigDecimal[] taxReceiverOldBalance = new BigDecimal[1];
+        final BigDecimal[] taxReceiverNewBalance = new BigDecimal[1];
+        final AtomicReference<TransactionResult> failureResult = new AtomicReference<>();
+
+        final BigDecimal fAmount = amount;
+        final BigDecimal fTax = tax;
+        final BigDecimal fTotalCost = totalCost;
+        final UUID fTaxReceiverUuid = taxReceiverUuid;
+        final PlayerAccount fTaxReceiverAccount = taxReceiverAccount;
+
+        // 4. 按排序顺序依次获取锁，在最内层执行所有操作
+        executeWithOrderedLocks(orderedAccounts, 0, () -> {
+            // 事件可能修改了金额，需在锁内重新校验余额
+            if (!economyManager.has(senderUuid, fTotalCost)) {
+                failureResult.set(new TransactionResult(false, "余额不足", BigDecimal.ZERO, BigDecimal.ZERO));
+                return;
+            }
+
+            // 计算新余额
+            senderOldBalance[0] = senderAccount.getBalance();
+            receiverOldBalance[0] = receiverAccount.getBalance();
+            senderNewBalance[0] = senderOldBalance[0].subtract(fTotalCost);
+            receiverNewBalance[0] = receiverOldBalance[0].add(fAmount);
+
+            // 税收接收者余额
+            if (fTaxReceiverAccount != null) {
+                taxReceiverOldBalance[0] = fTaxReceiverAccount.getBalance();
+                taxReceiverNewBalance[0] = taxReceiverOldBalance[0].add(fTax);
+            }
+
+            // 在单一 DB 事务中原子更新所有余额
+            final BigDecimal fTaxReceiverNewBal = taxReceiverNewBalance[0];
+            try {
+                PlayerDAO playerDAO = plugin.getDatabaseManager().getPlayerDAO();
+                plugin.getDatabaseManager().executeInTransaction(conn -> {
+                    playerDAO.updateBalanceInTransaction(conn, senderUuid, senderNewBalance[0]);
+                    playerDAO.updateBalanceInTransaction(conn, receiverUuid, receiverNewBalance[0]);
+                    if (fTaxReceiverUuid != null && fTaxReceiverNewBal != null) {
+                        playerDAO.updateBalanceInTransaction(conn, fTaxReceiverUuid, fTaxReceiverNewBal);
+                    }
+                    return null;
+                });
+            } catch (SQLException e) {
+                plugin.getLogger().severe(String.format("转账事务执行失败：%s", e.getMessage()));
+                failureResult.set(new TransactionResult(false, "转账失败，请稍后重试", BigDecimal.ZERO, BigDecimal.ZERO));
+                return;
+            }
+
+            // DB 事务提交成功，更新内存中的 PlayerAccount
+            senderAccount.setBalance(senderNewBalance[0]);
+            receiverAccount.setBalance(receiverNewBalance[0]);
+            receiverAccount.addDailyIncome(fAmount);
+            if (fTaxReceiverAccount != null && taxReceiverNewBalance[0] != null) {
+                fTaxReceiverAccount.setBalance(taxReceiverNewBalance[0]);
+            }
+        });
+
+        // 检查锁内操作是否失败
+        TransactionResult earlyFailure = failureResult.get();
+        if (earlyFailure != null) {
+            return earlyFailure;
         }
 
         // ---- 事务已提交，以下为后置操作（事件、日志、同步等） ----
 
         // 触发 BalanceChangeEvent
         SchedulerUtils.callEvent(plugin, new BalanceChangeEvent(
-            senderUuid, senderOldBalance, senderNewBalance, totalCost.negate(), BalanceChangeReason.PAYMENT));
+            senderUuid, senderOldBalance[0], senderNewBalance[0], totalCost.negate(), BalanceChangeReason.PAYMENT));
         SchedulerUtils.callEvent(plugin, new BalanceChangeEvent(
-            receiverUuid, receiverOldBalance, receiverNewBalance, amount, BalanceChangeReason.PAYMENT_RECEIVED));
+            receiverUuid, receiverOldBalance[0], receiverNewBalance[0], amount, BalanceChangeReason.PAYMENT_RECEIVED));
         if (taxReceiverAccount != null && tax.compareTo(BigDecimal.ZERO) > 0) {
             SchedulerUtils.callEvent(plugin, new BalanceChangeEvent(
-                taxReceiverUuid, taxReceiverOldBalance, taxReceiverNewBalance, tax, BalanceChangeReason.TAX));
+                taxReceiverUuid, taxReceiverOldBalance[0], taxReceiverNewBalance[0], tax, BalanceChangeReason.TAX));
         }
 
         // 记录余额变动日志
         plugin.getLogManager().logBalanceChange(senderUuid, senderAccount.getPlayerName(), "WITHDRAW",
-            totalCost, senderOldBalance, senderNewBalance, null, null, BalanceChangeReason.PAYMENT.name());
+            totalCost, senderOldBalance[0], senderNewBalance[0], null, null, BalanceChangeReason.PAYMENT.name());
         plugin.getLogManager().logBalanceChange(receiverUuid, receiverAccount.getPlayerName(), "DEPOSIT",
-            amount, receiverOldBalance, receiverNewBalance, null, null, BalanceChangeReason.PAYMENT_RECEIVED.name());
+            amount, receiverOldBalance[0], receiverNewBalance[0], null, null, BalanceChangeReason.PAYMENT_RECEIVED.name());
         if (taxReceiverAccount != null && tax.compareTo(BigDecimal.ZERO) > 0) {
             plugin.getLogManager().logBalanceChange(taxReceiverUuid, taxReceiverAccount.getPlayerName(), "DEPOSIT",
-                tax, taxReceiverOldBalance, taxReceiverNewBalance, null, "TAX_SYSTEM", BalanceChangeReason.TAX.name());
+                tax, taxReceiverOldBalance[0], taxReceiverNewBalance[0], null, "TAX_SYSTEM", BalanceChangeReason.TAX.name());
         }
 
         // Redis 同步
         if (plugin.getRedisSyncManager() != null) {
-            plugin.getRedisSyncManager().publishBalanceUpdate(senderUuid, senderAccount.getPlayerName(), senderNewBalance);
-            plugin.getRedisSyncManager().publishBalanceUpdate(receiverUuid, receiverAccount.getPlayerName(), receiverNewBalance);
+            plugin.getRedisSyncManager().publishBalanceUpdate(senderUuid, senderAccount.getPlayerName(), senderNewBalance[0]);
+            plugin.getRedisSyncManager().publishBalanceUpdate(receiverUuid, receiverAccount.getPlayerName(), receiverNewBalance[0]);
             if (taxReceiverAccount != null) {
-                plugin.getRedisSyncManager().publishBalanceUpdate(taxReceiverUuid, taxReceiverAccount.getPlayerName(), taxReceiverNewBalance);
+                plugin.getRedisSyncManager().publishBalanceUpdate(taxReceiverUuid, taxReceiverAccount.getPlayerName(), taxReceiverNewBalance[0]);
             }
         }
 
         // 触发 XConomy 兼容事件
-        fireXConomyEvent(senderUuid, senderAccount.getPlayerName(), senderOldBalance, totalCost, "WITHDRAW", BalanceChangeReason.PAYMENT);
-        fireXConomyEvent(receiverUuid, receiverAccount.getPlayerName(), receiverOldBalance, amount, "DEPOSIT", BalanceChangeReason.PAYMENT_RECEIVED);
+        fireXConomyEvent(senderUuid, senderAccount.getPlayerName(), senderOldBalance[0], totalCost, "WITHDRAW", BalanceChangeReason.PAYMENT);
+        fireXConomyEvent(receiverUuid, receiverAccount.getPlayerName(), receiverOldBalance[0], amount, "DEPOSIT", BalanceChangeReason.PAYMENT_RECEIVED);
         
         Transaction transaction = new Transaction(
             senderUuid, senderAccount.getPlayerName(),
@@ -231,6 +263,20 @@ public class TransactionManager {
         return new TransactionResult(true, null, amount, tax);
     }
     
+    /**
+     * 按排序顺序依次获取锁，防止死锁。
+     * 递归地在每个账户上 synchronized，最内层执行 action。
+     */
+    private void executeWithOrderedLocks(List<PlayerAccount> accounts, int index, Runnable action) {
+        if (index >= accounts.size()) {
+            action.run();
+            return;
+        }
+        synchronized (accounts.get(index)) {
+            executeWithOrderedLocks(accounts, index + 1, action);
+        }
+    }
+
     private void fireXConomyEvent(UUID uuid, String playerName, BigDecimal oldBalance,
                                    BigDecimal amount, String operationType, BalanceChangeReason reason) {
         if (!me.yic.xconomy.api.XConomyAPI.isCompatEnabled()) return;
