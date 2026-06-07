@@ -109,11 +109,11 @@ public class EconomyManager {
     }
     
     public EconomyResult set(UUID uuid, double amount) {
-        return set(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, null, null);
+        return set(uuid, BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN_SET, null, null);
     }
     
     public EconomyResult set(UUID uuid, BigDecimal amount) {
-        return set(uuid, amount, BalanceChangeReason.ADMIN, null, null);
+        return set(uuid, amount, BalanceChangeReason.ADMIN_SET, null, null);
     }
     
     public EconomyResult set(UUID uuid, BigDecimal amount, BalanceChangeReason reason,
@@ -213,12 +213,10 @@ public class EconomyManager {
             BigDecimal eventBalance = plugin.getCurrencyConfig().formatInput(event.getNewBalanceDecimal());
             eventBalance = eventBalance.max(BigDecimal.ZERO).min(maxBalance);
             account.setBalance(eventBalance);
-            // 在锁内计算并设置每日收入，避免竞态条件
-            if (reason == BalanceChangeReason.PAYMENT_RECEIVED) {
-                BigDecimal actualChange = eventBalance.subtract(oldBalance);
-                if (actualChange.compareTo(BigDecimal.ZERO) > 0) {
-                    account.addDailyIncome(actualChange);
-                }
+            // 余额增加且非管理员 set 操作时计入每日收入
+            BigDecimal actualChange = eventBalance.subtract(oldBalance);
+            if (actualChange.compareTo(BigDecimal.ZERO) > 0 && reason != BalanceChangeReason.ADMIN_SET) {
+                account.addDailyIncome(actualChange);
             }
             newBalance = eventBalance;
         }
@@ -425,11 +423,19 @@ public class EconomyManager {
             BigDecimal newBalance = isSet ? amount : (isWithdraw ? oldBalance.subtract(amount) : oldBalance.add(amount));
             newBalance = plugin.getCurrencyConfig().formatInput(newBalance);
             String playerName = ctx.nameMap.get(uuid);
-            
+
             logManager.logBalanceChange(uuid, playerName, logType,
                 isSet ? amount.subtract(oldBalance).abs() : amount,
                 oldBalance, newBalance, operator, operatorName, null);
-            
+
+            // depositAll 时对在线玩家追踪每日收入
+            if (!isWithdraw && !isSet && newBalance.compareTo(oldBalance) > 0) {
+                PlayerAccount account = playerDataManager.getAccount(uuid);
+                if (account != null) {
+                    account.addDailyIncome(newBalance.subtract(oldBalance));
+                }
+            }
+
             if (plugin.getRedisSyncManager() != null) {
                 plugin.getRedisSyncManager().publishBalanceUpdate(uuid, playerName, newBalance);
             }

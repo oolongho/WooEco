@@ -91,7 +91,7 @@ public class SetCommand extends AbstractSubCommandHandler {
         String operatorName = Optional.ofNullable(sender.getName()).orElse("CONSOLE");
         
         EconomyManager.EconomyResult result = economyManager.set(
-            account.getUuid(), BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN, operator, operatorName
+            account.getUuid(), BigDecimal.valueOf(amount), BalanceChangeReason.ADMIN_SET, operator, operatorName
         );
         
         if (result.isSuccess()) {

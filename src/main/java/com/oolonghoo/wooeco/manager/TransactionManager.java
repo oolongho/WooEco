@@ -202,6 +202,11 @@ public class TransactionManager {
             receiverAccount.addDailyIncome(fAmount);
             if (fTaxReceiverAccount != null && taxReceiverNewBalance[0] != null) {
                 fTaxReceiverAccount.setBalance(taxReceiverNewBalance[0]);
+                // 税收接收方余额增加时计入每日收入
+                BigDecimal taxIncome = taxReceiverNewBalance[0].subtract(taxReceiverOldBalance[0]);
+                if (taxIncome.compareTo(BigDecimal.ZERO) > 0) {
+                    fTaxReceiverAccount.addDailyIncome(taxIncome);
+                }
             }
         });
 

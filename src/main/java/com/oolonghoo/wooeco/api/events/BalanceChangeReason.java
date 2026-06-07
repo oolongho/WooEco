@@ -6,6 +6,7 @@ package com.oolonghoo.wooeco.api.events;
  */
 public enum BalanceChangeReason {
     ADMIN,
+    ADMIN_SET,
     PAYMENT,
     PAYMENT_RECEIVED,
     TAX,
